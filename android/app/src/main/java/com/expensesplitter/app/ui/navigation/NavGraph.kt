@@ -243,7 +243,7 @@ fun ExpenseSplitterNavGraph(
         }
         composable(Screen.Budgets.route) { BudgetsScreen(budgetRepository = container.budgetRepository) }
         composable(Screen.Insights.route) {
-            InsightsScreen(reportRepository = container.reportRepository, budgetRepository = container.budgetRepository)
+            InsightsScreen(reportRepository = container.reportRepository)
         }
         composable(Screen.Activity.route) {
             ActivityScreen(expenseRepository = container.expenseRepository)

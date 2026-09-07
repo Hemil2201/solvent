@@ -116,8 +116,20 @@ interface ApiService {
     @GET("reports/monthly")
     suspend fun getMonthlyReport(@Query("month") month: Int, @Query("year") year: Int): MonthlyReportDto
 
+    @GET("reports/monthly")
+    suspend fun getReportForRange(
+        @Query("start_date") startDate: String,
+        @Query("end_date") endDate: String,
+    ): MonthlyReportDto
+
     @GET("reports/export")
     suspend fun exportCsv(@Query("month") month: Int, @Query("year") year: Int): ResponseBody
+
+    @GET("reports/export")
+    suspend fun exportCsvForRange(
+        @Query("start_date") startDate: String,
+        @Query("end_date") endDate: String,
+    ): ResponseBody
 
     @GET("recurring")
     suspend fun getRecurring(): List<RecurringExpenseDto>

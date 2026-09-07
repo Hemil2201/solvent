@@ -5,8 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.expensesplitter.app.data.repository.BudgetRepository
-import com.expensesplitter.app.data.repository.CategoryBudgetSummary
 import com.expensesplitter.app.data.repository.CategoryBreakdown
 import com.expensesplitter.app.data.repository.MonthlyReport
 import com.expensesplitter.app.data.repository.ReportRepository
@@ -21,21 +19,23 @@ data class MonthSpend(val month: Int, val year: Int, val total: String)
 data class InsightsUiState(
     val month: Int = LocalDate.now().monthValue,
     val year: Int = LocalDate.now().year,
+    // Both non-null <=> a custom range is active, overriding month/year for
+    // everything except the Spend Over Time trend (that one stays anchored
+    // to real calendar months regardless — see loadTrend).
+    val customStart: LocalDate? = null,
+    val customEnd: LocalDate? = null,
     val isLoading: Boolean = true,
     val report: MonthlyReport? = null,
-    val budgets: List<CategoryBudgetSummary> = emptyList(),
     val trend: List<MonthSpend> = emptyList(),
     val error: String? = null,
 ) {
     val byCategory: List<CategoryBreakdown> get() = report?.byCategory.orEmpty()
+    val isCustomRange: Boolean get() = customStart != null && customEnd != null
 }
 
 private const val TREND_MONTHS = 6
 
-class InsightsViewModel(
-    private val reportRepository: ReportRepository,
-    private val budgetRepository: BudgetRepository,
-) : ViewModel() {
+class InsightsViewModel(private val reportRepository: ReportRepository) : ViewModel() {
     var state by mutableStateOf(InsightsUiState())
         private set
 
@@ -47,10 +47,19 @@ class InsightsViewModel(
         state = state.copy(isLoading = true, error = null)
         viewModelScope.launch {
             try {
-                val report = reportRepository.getMonthlyReport(state.month, state.year)
-                val budgets = budgetRepository.getSummary(state.month, state.year)
-                val trend = loadTrend(state.month, state.year)
-                state = state.copy(isLoading = false, report = report, budgets = budgets, trend = trend)
+                val start = state.customStart
+                val end = state.customEnd
+                val report = if (start != null && end != null) {
+                    reportRepository.getReportForRange(start.toString(), end.toString())
+                } else {
+                    reportRepository.getMonthlyReport(state.month, state.year)
+                }
+                // Trend is always the trailing 6 real calendar months ending
+                // this month, independent of whatever range is selected —
+                // a custom "3mo10d" window doesn't map onto month buckets.
+                val now = LocalDate.now()
+                val trend = loadTrend(now.monthValue, now.year)
+                state = state.copy(isLoading = false, report = report, trend = trend)
             } catch (e: Exception) {
                 state = state.copy(isLoading = false, error = e.message ?: "Failed to load insights")
             }
@@ -75,6 +84,25 @@ class InsightsViewModel(
         if (month > 12) { month = 1; year++ }
         if (month < 1) { month = 12; year-- }
         state = state.copy(month = month, year = year)
+        load()
+    }
+
+    fun setCustomStart(date: LocalDate) {
+        state = state.copy(customStart = date, customEnd = null)
+    }
+
+    fun setCustomEnd(date: LocalDate) {
+        val start = state.customStart
+        state = if (start != null && date.isBefore(start)) {
+            state.copy(customStart = date, customEnd = start)
+        } else {
+            state.copy(customEnd = date)
+        }
+        load()
+    }
+
+    fun clearCustomRange() {
+        state = state.copy(customStart = null, customEnd = null)
         load()
     }
 }

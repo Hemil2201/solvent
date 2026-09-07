@@ -7,8 +7,10 @@ data class CategoryBreakdownDto(val category_id: String? = null, val category_na
 
 @Serializable
 data class MonthlyReportDto(
-    val month: Int,
-    val year: Int,
+    val month: Int? = null,
+    val year: Int? = null,
+    val start_date: String? = null,
+    val end_date: String? = null,
     val total_spend: String,
     val personal_spend: String,
     val shared_spend: String,
