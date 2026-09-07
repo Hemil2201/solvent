@@ -2,9 +2,10 @@ import csv
 import io
 import uuid
 from collections import defaultdict
+from datetime import date as date_type
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import extract, select
 from sqlalchemy.orm import Session
 
@@ -31,11 +32,26 @@ def _month_expenses(db: Session, month: int, year: int) -> list[Expense]:
     )
 
 
-@router.get("/monthly", response_model=MonthlyReport)
-def monthly_report(
-    month: int, year: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)
+def _range_expenses(db: Session, start_date: date_type, end_date: date_type) -> list[Expense]:
+    return list(
+        db.execute(
+            select(Expense).where(
+                Expense.deleted_at.is_(None),
+                Expense.date >= start_date,
+                Expense.date <= end_date,
+            )
+        ).scalars()
+    )
+
+
+def _build_report(
+    db: Session,
+    expenses: list[Expense],
+    month: int | None,
+    year: int | None,
+    start_date: date_type | None,
+    end_date: date_type | None,
 ) -> MonthlyReport:
-    expenses = _month_expenses(db, month, year)
     categories_by_id = {c.id: c.name for c in db.execute(select(Category)).scalars()}
 
     personal_spend = Decimal("0")
@@ -64,6 +80,8 @@ def monthly_report(
     return MonthlyReport(
         month=month,
         year=year,
+        start_date=start_date,
+        end_date=end_date,
         total_spend=personal_spend + shared_spend,
         personal_spend=personal_spend,
         shared_spend=shared_spend,
@@ -71,11 +89,42 @@ def monthly_report(
     )
 
 
+@router.get("/monthly", response_model=MonthlyReport)
+def monthly_report(
+    month: int | None = None,
+    year: int | None = None,
+    start_date: date_type | None = None,
+    end_date: date_type | None = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> MonthlyReport:
+    if start_date is not None and end_date is not None:
+        expenses = _range_expenses(db, start_date, end_date)
+        return _build_report(db, expenses, None, None, start_date, end_date)
+    if month is not None and year is not None:
+        expenses = _month_expenses(db, month, year)
+        return _build_report(db, expenses, month, year, None, None)
+    raise HTTPException(status_code=422, detail="Provide either month+year or start_date+end_date")
+
+
 @router.get("/export")
 def export_csv(
-    month: int, year: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)
+    month: int | None = None,
+    year: int | None = None,
+    start_date: date_type | None = None,
+    end_date: date_type | None = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ) -> Response:
-    expenses = _month_expenses(db, month, year)
+    if start_date is not None and end_date is not None:
+        expenses = _range_expenses(db, start_date, end_date)
+        filename = f"expenses_{start_date.isoformat()}_to_{end_date.isoformat()}.csv"
+    elif month is not None and year is not None:
+        expenses = _month_expenses(db, month, year)
+        filename = f"expenses_{year}_{month:02d}.csv"
+    else:
+        raise HTTPException(status_code=422, detail="Provide either month+year or start_date+end_date")
+
     categories_by_id = {c.id: c.name for c in db.execute(select(Category)).scalars()}
     users_by_id = {u.id: u.name for u in db.execute(select(User)).scalars()}
 
@@ -95,7 +144,6 @@ def export_csv(
             ]
         )
 
-    filename = f"expenses_{year}_{month:02d}.csv"
     return Response(
         content=buffer.getvalue(),
         media_type="text/csv",
