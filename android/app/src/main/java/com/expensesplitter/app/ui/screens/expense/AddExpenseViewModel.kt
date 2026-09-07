@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.expensesplitter.app.data.remote.dto.ExpenseCreateDto
+import com.expensesplitter.app.data.remote.dto.ExpenseUpdateDto
 import com.expensesplitter.app.data.remote.dto.SplitInputDto
 import com.expensesplitter.app.data.repository.AuthRepository
 import com.expensesplitter.app.data.repository.Category
@@ -43,7 +44,10 @@ class AddExpenseViewModel(
     private val expenseRepository: ExpenseRepository,
     private val authRepository: AuthRepository,
     private val pendingReceiptDraftHolder: PendingReceiptDraftHolder? = null,
+    private val expenseId: String? = null,
 ) : ViewModel() {
+    val isEditMode: Boolean = expenseId != null
+
     var state by mutableStateOf(AddExpenseFormState())
         private set
 
@@ -53,6 +57,31 @@ class AddExpenseViewModel(
                 val categories = expenseRepository.getCategories()
                 val users = authRepository.getLoginUsers()
                 val sessionUserId = authRepository.getSessionUser()?.id
+
+                if (expenseId != null) {
+                    // Editing an existing expense — load its current values
+                    // instead of the blank-form / receipt-draft prefill path.
+                    val existing = expenseRepository.getExpense(expenseId)
+                    state = state.copy(
+                        categories = categories,
+                        selectedCategoryId = existing.categoryId ?: categories.firstOrNull()?.id,
+                        users = users,
+                        amount = existing.amount,
+                        currency = existing.currency,
+                        description = existing.description.orEmpty(),
+                        date = runCatching { LocalDate.parse(existing.date) }.getOrDefault(LocalDate.now()),
+                        paidBy = existing.paidBy,
+                        isShared = existing.isShared,
+                        splitType = existing.splits.firstOrNull()?.splitType ?: "equal",
+                        // The original % / shares input isn't stored server-side,
+                        // only the resulting owed amount — that's the best
+                        // available prefill for any split type.
+                        splitValues = existing.splits.associate { it.userId to it.amountOwed },
+                        receiptPhotoUrl = existing.receiptPhotoUrl,
+                        isLoading = false,
+                    )
+                    return@launch
+                }
 
                 // A receipt scan (see ReceiptScanScreen) leaves its parsed
                 // fields here for this form to pick up and prefill, once.
@@ -109,20 +138,37 @@ class AddExpenseViewModel(
         state = state.copy(isSubmitting = true, error = null)
         viewModelScope.launch {
             try {
-                expenseRepository.createExpense(
-                    ExpenseCreateDto(
-                        amount = amount.toPlainString(),
-                        currency = state.currency,
-                        date = state.date.toString(),
-                        description = state.description.ifBlank { null },
-                        category_id = state.selectedCategoryId,
-                        paid_by = paidBy,
-                        is_shared = state.isShared,
-                        split_type = if (state.isShared) state.splitType else null,
-                        splits = splits,
-                        receipt_photo_url = state.receiptPhotoUrl,
-                    ),
-                )
+                if (expenseId != null) {
+                    expenseRepository.updateExpense(
+                        expenseId,
+                        ExpenseUpdateDto(
+                            amount = amount.toPlainString(),
+                            currency = state.currency,
+                            date = state.date.toString(),
+                            description = state.description.ifBlank { null },
+                            category_id = state.selectedCategoryId,
+                            paid_by = paidBy,
+                            is_shared = state.isShared,
+                            split_type = if (state.isShared) state.splitType else null,
+                            splits = splits,
+                        ),
+                    )
+                } else {
+                    expenseRepository.createExpense(
+                        ExpenseCreateDto(
+                            amount = amount.toPlainString(),
+                            currency = state.currency,
+                            date = state.date.toString(),
+                            description = state.description.ifBlank { null },
+                            category_id = state.selectedCategoryId,
+                            paid_by = paidBy,
+                            is_shared = state.isShared,
+                            split_type = if (state.isShared) state.splitType else null,
+                            splits = splits,
+                            receipt_photo_url = state.receiptPhotoUrl,
+                        ),
+                    )
+                }
                 state = state.copy(isSubmitting = false, success = true)
                 onSuccess()
             } catch (e: HttpException) {

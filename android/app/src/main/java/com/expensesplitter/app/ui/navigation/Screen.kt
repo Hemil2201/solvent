@@ -11,6 +11,9 @@ sealed class Screen(val route: String) {
     data object ExpenseDetail : Screen("expense_detail/{expenseId}") {
         fun buildRoute(expenseId: String) = "expense_detail/$expenseId"
     }
+    data object EditExpense : Screen("edit_expense/{expenseId}") {
+        fun buildRoute(expenseId: String) = "edit_expense/$expenseId"
+    }
     data object DeletedExpenses : Screen("deleted_expenses")
     data object StatementUpload : Screen("statement_upload")
     data object Budgets : Screen("budgets")

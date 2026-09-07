@@ -14,7 +14,7 @@ data class ActivityItem(val type: String, val timestamp: String, val userName: S
 
 data class Category(val id: String, val name: String, val icon: String?)
 
-data class ExpenseSplit(val userId: String, val amountOwed: String)
+data class ExpenseSplit(val userId: String, val amountOwed: String, val splitType: String)
 
 data class Expense(
     val id: String,
@@ -139,7 +139,7 @@ class ExpenseRepository(
         paidBy = paid_by,
         isShared = is_shared,
         deletedAt = deleted_at,
-        splits = splits.map { ExpenseSplit(it.user_id, it.amount_owed) },
+        splits = splits.map { ExpenseSplit(it.user_id, it.amount_owed, it.split_type) },
         receiptPhotoUrl = receipt_photo_url,
     )
 

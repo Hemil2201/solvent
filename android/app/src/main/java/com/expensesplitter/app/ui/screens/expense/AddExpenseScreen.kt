@@ -65,11 +65,13 @@ fun AddExpenseScreen(
     expenseRepository: ExpenseRepository,
     authRepository: AuthRepository,
     pendingReceiptDraftHolder: PendingReceiptDraftHolder? = null,
+    expenseId: String? = null,
     onSaved: () -> Unit,
 ) {
     val viewModel: AddExpenseViewModel = viewModel(
+        key = expenseId,
         factory = viewModelFactory {
-            initializer { AddExpenseViewModel(expenseRepository, authRepository, pendingReceiptDraftHolder) }
+            initializer { AddExpenseViewModel(expenseRepository, authRepository, pendingReceiptDraftHolder, expenseId) }
         },
     )
     val state = viewModel.state
@@ -233,7 +235,7 @@ fun AddExpenseScreen(
             onClick = { viewModel.submit { showSuccess = true } },
             enabled = !state.isSubmitting,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (state.isSubmitting) "Saving…" else "Save Expense") }
+        ) { Text(if (state.isSubmitting) "Saving…" else if (viewModel.isEditMode) "Save Changes" else "Save Expense") }
     }
 
         SuccessCheckOverlay(visible = showSuccess, modifier = Modifier.align(Alignment.Center))

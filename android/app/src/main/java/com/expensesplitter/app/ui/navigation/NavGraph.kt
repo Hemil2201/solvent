@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -46,6 +47,7 @@ import com.expensesplitter.app.ui.screens.statement.StatementUploadScreen
 // heading instead and need neither a title bar nor a back arrow.
 private val PUSHED_SCREEN_TITLES = mapOf(
     Screen.AddExpense.route to "Add Expense",
+    Screen.EditExpense.route to "Edit Expense",
     Screen.ReceiptScan.route to "Scan Receipt",
     Screen.ExpenseDetail.route to "Expense Detail",
     Screen.DeletedExpenses.route to "Recently Deleted",
@@ -77,6 +79,16 @@ fun ExpenseSplitterNavGraph(
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        if (currentRoute?.route == Screen.ExpenseDetail.route) {
+                            val expenseId = backStackEntry?.arguments?.getString("expenseId")
+                            if (expenseId != null) {
+                                IconButton(onClick = { navController.navigate(Screen.EditExpense.buildRoute(expenseId)) }) {
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit expense")
+                                }
+                            }
                         }
                     },
                 )
@@ -171,6 +183,17 @@ fun ExpenseSplitterNavGraph(
                 expenseRepository = container.expenseRepository,
                 authRepository = container.authRepository,
                 pendingReceiptDraftHolder = container.pendingReceiptDraftHolder,
+                onSaved = { navController.popBackStack() },
+            )
+        }
+        composable(
+            Screen.EditExpense.route,
+            arguments = listOf(navArgument("expenseId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            AddExpenseScreen(
+                expenseRepository = container.expenseRepository,
+                authRepository = container.authRepository,
+                expenseId = backStackEntry.arguments?.getString("expenseId"),
                 onSaved = { navController.popBackStack() },
             )
         }
