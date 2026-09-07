@@ -3,7 +3,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from PIL import Image
+from PIL import Image, ImageOps
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,6 +31,12 @@ def _compress(raw_bytes: bytes, content_type: str) -> tuple[bytes, str]:
     rather than blocking the upload."""
     try:
         image = Image.open(io.BytesIO(raw_bytes))
+        # Phone photos carry an EXIF orientation tag ("display this rotated
+        # 90°") rather than storing the pixels upright — PIL doesn't apply it
+        # automatically, and re-encoding without it bakes in the sideways
+        # pixels permanently. That's what was feeding the AI a rotated
+        # receipt and causing it to misread the printed date.
+        image = ImageOps.exif_transpose(image)
         image = image.convert("RGB")
         image.thumbnail((MAX_DIMENSION, MAX_DIMENSION))
         buf = io.BytesIO()
