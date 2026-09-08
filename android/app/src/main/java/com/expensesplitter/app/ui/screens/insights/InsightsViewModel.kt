@@ -87,16 +87,13 @@ class InsightsViewModel(private val reportRepository: ReportRepository) : ViewMo
         load()
     }
 
-    fun setCustomStart(date: LocalDate) {
-        state = state.copy(customStart = date, customEnd = null)
-    }
-
-    fun setCustomEnd(date: LocalDate) {
-        val start = state.customStart
-        state = if (start != null && date.isBefore(start)) {
-            state.copy(customStart = date, customEnd = start)
+    // DateRangePicker hands back both ends at once (unlike the old two-step
+    // single-date flow), so this can just set both fields atomically.
+    fun setCustomRange(start: LocalDate, end: LocalDate) {
+        state = if (end.isBefore(start)) {
+            state.copy(customStart = end, customEnd = start)
         } else {
-            state.copy(customEnd = date)
+            state.copy(customStart = start, customEnd = end)
         }
         load()
     }

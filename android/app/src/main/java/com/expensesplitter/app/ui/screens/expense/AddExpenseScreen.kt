@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -148,7 +149,10 @@ fun AddExpenseScreen(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
             CURRENCIES.forEach { currency ->
                 FilterChip(
                     selected = state.currency == currency,
@@ -180,7 +184,10 @@ fun AddExpenseScreen(
         )
 
         Text("Paid by", style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
             state.users.forEach { user ->
                 FilterChip(
                     selected = state.paidBy == user.id,
@@ -200,7 +207,10 @@ fun AddExpenseScreen(
 
         if (state.isShared) {
             Text("Split type", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
                 SPLIT_TYPES.forEach { type ->
                     FilterChip(
                         selected = state.splitType == type,

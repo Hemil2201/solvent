@@ -4,9 +4,11 @@ import android.content.Intent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,16 +18,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -57,6 +61,7 @@ import com.expensesplitter.app.ui.theme.Spacing
 import java.time.Instant
 import java.time.Month
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,10 +73,7 @@ fun InsightsScreen(reportRepository: ReportRepository) {
     val state = viewModel.state
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    // "start" | "end" | null — which end of a custom range the date picker
-    // below is currently editing. Tapping "Custom range" starts at "start"
-    // and, once confirmed, chains straight into "end" for a quick two-tap flow.
-    var datePickerTarget by remember { mutableStateOf<String?>(null) }
+    var showRangePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
@@ -103,32 +105,28 @@ fun InsightsScreen(reportRepository: ReportRepository) {
             }) { Text("Export CSV") }
         }
 
-        if (state.isCustomRange) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                AssistChip(
-                    onClick = { datePickerTarget = "start" },
-                    label = { Text("${state.customStart} → ${state.customEnd}") },
-                )
-                IconButton(onClick = viewModel::clearCustomRange) {
+        // A trailing button pinned to the end via Box (not a Row sibling)
+        // so it never competes with MonthPager for width — that competition
+        // is what previously squeezed the next-month arrow and, on a custom
+        // range, truncated the button label off the edge of the screen.
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (state.isCustomRange) {
+                TextButton(onClick = { showRangePicker = true }, modifier = Modifier.align(Alignment.Center)) {
+                    Text("${state.customStart} → ${state.customEnd}", fontWeight = FontWeight.SemiBold)
+                }
+                IconButton(onClick = viewModel::clearCustomRange, modifier = Modifier.align(Alignment.CenterEnd)) {
                     Icon(Icons.Filled.Close, contentDescription = "Clear custom range")
                 }
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // MonthPager fills whatever width it's given, so it needs a
-                // weight here or it swallows the whole row and leaves no
-                // room for the button beside it.
+            } else {
                 MonthPager(
                     month = state.month,
                     year = state.year,
                     onChange = viewModel::changeMonth,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.align(Alignment.Center),
                 )
-                TextButton(onClick = { datePickerTarget = "start" }) { Text("Custom range") }
+                IconButton(onClick = { showRangePicker = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
+                    Icon(Icons.Filled.DateRange, contentDescription = "Custom date range")
+                }
             }
         }
 
@@ -189,29 +187,64 @@ fun InsightsScreen(reportRepository: ReportRepository) {
         }
     }
 
-    datePickerTarget?.let { target ->
-        val datePickerState = rememberDatePickerState()
-        DatePickerDialog(
-            onDismissRequest = { datePickerTarget = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    val millis = datePickerState.selectedDateMillis
-                    val date = millis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
-                    if (date != null) {
-                        if (target == "start") {
-                            viewModel.setCustomStart(date)
-                            datePickerTarget = "end"
-                        } else {
-                            viewModel.setCustomEnd(date)
-                            datePickerTarget = null
-                        }
-                    } else {
-                        datePickerTarget = null
+    if (showRangePicker) {
+        val rangeState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = state.customStart?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
+            initialSelectedEndDateMillis = state.customEnd?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
+        )
+        // DateRangePicker needs a lot more vertical room than the compact
+        // single-date DatePicker, so it gets a near-fullscreen Dialog rather
+        // than DatePickerDialog's fixed-size chrome.
+        Dialog(onDismissRequest = { showRangePicker = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.92f), shape = RoundedCornerShape(28.dp)) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    DateRangePicker(
+                        state = rangeState,
+                        modifier = Modifier.weight(1f),
+                        headline = {
+                            val fmt = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
+                            val start = rangeState.selectedStartDateMillis
+                            val end = rangeState.selectedEndDateMillis
+                            Column(modifier = Modifier.padding(start = 24.dp, end = 12.dp, bottom = 12.dp)) {
+                                val startText = start?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().format(fmt) } ?: "Start date"
+                                val endText = end?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().format(fmt) } ?: "End date"
+                                Text("$startText – $endText", style = MaterialTheme.typography.titleLarge)
+                                // The "how many days" readout the airline-style
+                                // pickers show once both ends are picked.
+                                if (start != null && end != null) {
+                                    val days = ((end - start) / 86_400_000L).toInt() + 1
+                                    Text(
+                                        "$days day${if (days == 1) "" else "s"} selected",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { showRangePicker = false }) { Text("Cancel") }
+                        TextButton(
+                            enabled = rangeState.selectedStartDateMillis != null && rangeState.selectedEndDateMillis != null,
+                            onClick = {
+                                val start = rangeState.selectedStartDateMillis
+                                val end = rangeState.selectedEndDateMillis
+                                if (start != null && end != null) {
+                                    viewModel.setCustomRange(
+                                        Instant.ofEpochMilli(start).atZone(ZoneOffset.UTC).toLocalDate(),
+                                        Instant.ofEpochMilli(end).atZone(ZoneOffset.UTC).toLocalDate(),
+                                    )
+                                }
+                                showRangePicker = false
+                            },
+                        ) { Text("Apply") }
                     }
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { datePickerTarget = null }) { Text("Cancel") } },
-        ) { DatePicker(state = datePickerState) }
+                }
+            }
+        }
     }
 }
 
