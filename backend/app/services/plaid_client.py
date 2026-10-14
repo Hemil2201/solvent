@@ -5,6 +5,7 @@ from plaid.api import plaid_api
 from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
 from plaid.model.country_code import CountryCode
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
+from plaid.model.item_remove_request import ItemRemoveRequest
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 from plaid.model.products import Products
@@ -89,6 +90,13 @@ def sync_transactions(access_token: str, cursor: str | None) -> dict:
         cursor = response.next_cursor
         has_more = response.has_more
     return {"added": added, "modified": modified, "removed": removed, "next_cursor": cursor}
+
+
+def remove_item(access_token: str) -> None:
+    """Revokes the Item on Plaid's side when a user unlinks an account —
+    best-effort from the caller's perspective (the local PlaidItem row
+    should be deleted regardless of whether this succeeds)."""
+    _client().item_remove(ItemRemoveRequest(access_token=access_token))
 
 
 def sandbox_create_public_token(institution_id: str = "ins_109508") -> str:

@@ -8,6 +8,7 @@ from app.routers import (
     budgets,
     categories,
     expenses,
+    plaid,
     receipts,
     recurring,
     reports,
@@ -37,6 +38,7 @@ app.include_router(recurring.router)
 app.include_router(activity.router)
 app.include_router(users.router)
 app.include_router(receipts.router)
+app.include_router(plaid.router)
 
 
 @app.get("/health")
