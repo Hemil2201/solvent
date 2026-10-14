@@ -17,6 +17,16 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = ""
 
+    # Sandbox for now — see backend/.env.example for where to get these.
+    plaid_client_id: str = ""
+    plaid_secret: str = ""
+    plaid_env: str = "sandbox"
+    # Fernet key (Fernet.generate_key()) encrypting plaid_items.access_token
+    # at rest — the one real secret this app stores in its own DB. Separate
+    # from jwt_secret: a leaked JWT signing key shouldn't also unlock stored
+    # bank access tokens.
+    plaid_encryption_key: str = ""
+
     env: str = "dev"
 
 

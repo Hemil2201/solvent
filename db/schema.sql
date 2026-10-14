@@ -184,7 +184,134 @@ create table statement_transactions (
 create index statement_transactions_upload_idx
   on statement_transactions (statement_upload_id);
 
+-- ======================================================== plaid_items ====
+-- One Plaid "Item" = one end-user's login connection to one institution
+-- (can contain several accounts). Private to whoever linked it — user_id is
+-- an access-control boundary, not just metadata: every /plaid endpoint
+-- filters by current_user.id, so Hemil's items are never queryable from
+-- Heenal's session and vice versa.
+create table plaid_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  plaid_item_id text not null unique,
+  plaid_institution_id text,
+  institution_name text,
+  -- Fernet-encrypted at rest (app/services/token_encryption.py) — this is
+  -- the one real secret in the whole DB, never logged or returned to the
+  -- client in any response.
+  access_token_encrypted text not null,
+  -- Cursor for the /transactions/sync pagination endpoint; null until the
+  -- first sync.
+  sync_cursor text,
+  status text not null default 'active'
+    check (status in ('active', 'error', 'revoked')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create trigger plaid_items_set_updated_at
+  before update on plaid_items
+  for each row execute function set_updated_at();
+
+create index plaid_items_user_idx on plaid_items (user_id);
+
+-- ===================================================== plaid_accounts ====
+create table plaid_accounts (
+  id uuid primary key default gen_random_uuid(),
+  plaid_item_id uuid not null references plaid_items(id) on delete cascade,
+  plaid_account_id text not null unique,
+  name text not null,
+  official_name text,
+  mask varchar(4),
+  type text,
+  subtype text,
+  current_balance numeric(12, 2),
+  available_balance numeric(12, 2),
+  iso_currency_code varchar(3),
+  updated_at timestamptz not null default now()
+);
+
+create trigger plaid_accounts_set_updated_at
+  before update on plaid_accounts
+  for each row execute function set_updated_at();
+
+create index plaid_accounts_item_idx on plaid_accounts (plaid_item_id);
+
+-- ================================================= plaid_transactions ====
+-- Staging table, same shape/role as statement_transactions (raw row ->
+-- user reviews -> resolve into a real expense) but sourced from a Plaid
+-- account's sync feed instead of an uploaded file. Private until resolved:
+-- only visible through endpoints scoped to the owning plaid_item's user_id.
+-- Once resolved_expense_id is set, the resulting Expense is a normal shared
+-- row like any other — privacy only applies to this staging data.
+--
+-- Amount sign follows Plaid's convention: positive = money out (a purchase,
+-- what we want), negative = money in (a refund/credit/payment) — so these
+-- can be stored and summed the same way a signed refund expense would be,
+-- without an abs()/sign-flip step.
+create table plaid_transactions (
+  id uuid primary key default gen_random_uuid(),
+  plaid_account_id uuid not null references plaid_accounts(id) on delete cascade,
+  plaid_transaction_id text not null unique,
+  raw_date date,
+  raw_description text,
+  raw_merchant_name text,
+  raw_amount numeric(12, 2),
+  pending boolean not null default false,
+  matched_category_id uuid references categories(id),
+  needs_clarification boolean not null default false,
+  user_clarification_note text,
+  is_duplicate_of uuid references expenses(id),
+  resolved_expense_id uuid references expenses(id),
+  created_at timestamptz not null default now()
+);
+
+create index plaid_transactions_account_idx on plaid_transactions (plaid_account_id);
+create index plaid_transactions_resolved_idx on plaid_transactions (resolved_expense_id);
+
+-- =================================================== split_preferences ====
+-- Learned split suggestions (starts empty — learns only from choices made
+-- going forward, no backfill from existing expense history). Keyed by
+-- normalized merchant name first (most specific signal), falling back to
+-- category when no merchant-specific history exists yet. Exactly one of
+-- merchant_key/category_id is set per row.
+create table split_preferences (
+  id uuid primary key default gen_random_uuid(),
+  merchant_key text,
+  category_id uuid references categories(id) on delete cascade,
+  split_type text not null
+    check (split_type in ('equal', 'percentage', 'exact', 'shares')),
+  -- Per-user split values as last chosen (e.g. {"<user-uuid>": "50", ...}
+  -- for percentage/shares; null for equal). Reapplied as a starting
+  -- suggestion against the new amount, not force-matched.
+  split_values jsonb,
+  sample_count integer not null default 1,
+  updated_at timestamptz not null default now()
+);
+
+create unique index split_preferences_merchant_unique
+  on split_preferences (merchant_key)
+  where merchant_key is not null;
+
+create unique index split_preferences_category_unique
+  on split_preferences (category_id)
+  where merchant_key is null and category_id is not null;
+
+create trigger split_preferences_set_updated_at
+  before update on split_preferences
+  for each row execute function set_updated_at();
+
 -- Close the circular reference now that statement_transactions exists.
+-- source_transaction_id is intentionally a loose pointer rather than a
+-- single-target FK: it can reference either statement_transactions.id or
+-- plaid_transactions.id depending on source, so no FK is declared on it at
+-- all (matches the ORM model, which never declared a relationship here).
 alter table expenses
-  add constraint expenses_source_transaction_fk
-  foreign key (source_transaction_id) references statement_transactions(id);
+  drop constraint if exists expenses_source_transaction_fk;
+
+alter table expenses
+  drop constraint if exists expenses_source_check;
+
+alter table expenses
+  add constraint expenses_source_check
+  check (source in ('manual', 'statement_upload', 'receipt_scan', 'recurring', 'plaid_sync'));
