@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.expensesplitter.app.di.AppContainer
+import com.expensesplitter.app.ui.screens.accounts.AccountsScreen
 import com.expensesplitter.app.ui.screens.activity.ActivityScreen
 import com.expensesplitter.app.ui.screens.budgets.BudgetsScreen
 import com.expensesplitter.app.ui.screens.dashboard.DashboardScreen
@@ -54,6 +55,7 @@ private val PUSHED_SCREEN_TITLES = mapOf(
     Screen.StatementUpload.route to "Upload Statement",
     Screen.Recurring.route to "Recurring Expenses",
     Screen.Activity.route to "Activity",
+    Screen.Accounts.route to "Linked Accounts",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -168,6 +170,7 @@ fun ExpenseSplitterNavGraph(
                 onScanReceipt = { navController.navigate(Screen.ReceiptScan.route) },
                 onViewRecurring = { navController.navigate(Screen.Recurring.route) },
                 onViewActivity = { navController.navigate(Screen.Activity.route) },
+                onViewAccounts = { navController.navigate(Screen.Accounts.route) },
                 onOpenCategory = { categoryId ->
                     container.pendingCategoryFilterHolder.categoryId = categoryId
                     navController.navigate(Screen.ExpenseList.route) {
@@ -177,6 +180,9 @@ fun ExpenseSplitterNavGraph(
                     }
                 },
             )
+        }
+        composable(Screen.Accounts.route) {
+            AccountsScreen(plaidRepository = container.plaidRepository)
         }
         composable(Screen.AddExpense.route) {
             AddExpenseScreen(

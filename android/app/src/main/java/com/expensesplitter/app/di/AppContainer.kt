@@ -10,6 +10,7 @@ import com.expensesplitter.app.data.repository.BudgetRepository
 import com.expensesplitter.app.data.repository.ExpenseRepository
 import com.expensesplitter.app.data.repository.PendingCategoryFilterHolder
 import com.expensesplitter.app.data.repository.PendingReceiptDraftHolder
+import com.expensesplitter.app.data.repository.PlaidRepository
 import com.expensesplitter.app.data.repository.ReceiptRepository
 import com.expensesplitter.app.data.repository.RecurringRepository
 import com.expensesplitter.app.data.repository.ReportRepository
@@ -43,6 +44,8 @@ class AppContainer(context: Context) {
     val recurringRepository = RecurringRepository(apiService = apiService)
 
     val receiptRepository = ReceiptRepository(apiService = apiService)
+
+    val plaidRepository = PlaidRepository(apiService = apiService)
 
     val pendingReceiptDraftHolder = PendingReceiptDraftHolder()
 

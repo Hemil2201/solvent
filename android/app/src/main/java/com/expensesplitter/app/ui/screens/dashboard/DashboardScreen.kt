@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.History
@@ -50,6 +51,7 @@ fun DashboardScreen(
     onScanReceipt: () -> Unit,
     onViewRecurring: () -> Unit,
     onViewActivity: () -> Unit,
+    onViewAccounts: () -> Unit,
     onOpenCategory: (categoryId: String) -> Unit,
 ) {
     val viewModel: DashboardViewModel = viewModel(
@@ -89,6 +91,8 @@ fun DashboardScreen(
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                     ) {
                         Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
+                            ActionRow(label = "Linked Accounts", icon = Icons.Filled.AccountBalance, onClick = onViewAccounts)
+                            Divider()
                             ActionRow(label = "Upload Statement", icon = Icons.Filled.UploadFile, onClick = onUploadStatement)
                             Divider()
                             ActionRow(label = "Scan a Receipt", icon = Icons.Filled.CameraAlt, onClick = onScanReceipt)

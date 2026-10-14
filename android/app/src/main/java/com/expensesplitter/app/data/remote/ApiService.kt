@@ -12,8 +12,11 @@ import com.expensesplitter.app.data.remote.dto.ExpenseCreateDto
 import com.expensesplitter.app.data.remote.dto.ExpenseDto
 import com.expensesplitter.app.data.remote.dto.ExpenseEditHistoryDto
 import com.expensesplitter.app.data.remote.dto.ExpenseUpdateDto
+import com.expensesplitter.app.data.remote.dto.ExchangePublicTokenRequestDto
+import com.expensesplitter.app.data.remote.dto.LinkTokenResponseDto
 import com.expensesplitter.app.data.remote.dto.LoginRequestDto
 import com.expensesplitter.app.data.remote.dto.MonthlyReportDto
+import com.expensesplitter.app.data.remote.dto.PlaidAccountDto
 import com.expensesplitter.app.data.remote.dto.RecurringExpenseCreateDto
 import com.expensesplitter.app.data.remote.dto.RecurringExpenseDto
 import com.expensesplitter.app.data.remote.dto.RecurringExpenseUpdateDto
@@ -150,4 +153,16 @@ interface ApiService {
     @Multipart
     @POST("receipts/scan")
     suspend fun scanReceipt(@Part file: MultipartBody.Part): ReceiptScanResponseDto
+
+    @POST("plaid/link-token")
+    suspend fun createPlaidLinkToken(): LinkTokenResponseDto
+
+    @POST("plaid/exchange-public-token")
+    suspend fun exchangePlaidPublicToken(@Body body: ExchangePublicTokenRequestDto): List<PlaidAccountDto>
+
+    @GET("plaid/accounts")
+    suspend fun getPlaidAccounts(): List<PlaidAccountDto>
+
+    @DELETE("plaid/items/{itemId}")
+    suspend fun unlinkPlaidItem(@Path("itemId") itemId: String)
 }
