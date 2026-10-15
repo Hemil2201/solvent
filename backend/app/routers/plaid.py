@@ -25,7 +25,7 @@ from app.schemas.plaid import (
 from app.models.split_preference import SplitPreference
 from app.services import plaid_client
 from app.services import split_preference_service
-from app.services.categorizer import llm_category, rules_based_category
+from app.services.categorizer import rules_based_category
 from app.services.duplicate_detector import find_duplicate
 from app.services.split_calculator import SplitValidationError, compute_splits
 from app.services.token_encryption import decrypt_token, encrypt_token
@@ -175,7 +175,6 @@ def sync_transactions(db: Session = Depends(get_db), current_user: User = Depend
     items = _user_items(db, current_user.id)
     categories = list(db.execute(select(Category)).scalars())
     categories_by_name = {c.name: c.id for c in categories}
-    category_names = [c.name for c in categories]
 
     added_count = 0
     modified_count = 0
@@ -197,15 +196,16 @@ def sync_transactions(db: Session = Depends(get_db), current_user: User = Depend
                 select(PlaidTransaction).where(PlaidTransaction.plaid_transaction_id == t.transaction_id)
             ).scalar_one_or_none()
 
+            # Rule-based only — no LLM fallback here. A real bank's first
+            # sync can return hundreds of transactions in one request, and a
+            # synchronous per-transaction LLM call (one network round-trip
+            # each) multiplies into a request that blows past any reasonable
+            # client timeout. Unmatched transactions are just flagged for
+            # the user to pick a category manually, same as an LLM "not
+            # confident" result already did.
             description = t.merchant_name or t.name
             category_id = rules_based_category(description, categories_by_name)
-            needs_clarification = False
-            if category_id is None:
-                llm_pick = llm_category(description, category_names)
-                if llm_pick and llm_pick in categories_by_name:
-                    category_id = categories_by_name[llm_pick]
-                else:
-                    needs_clarification = True
+            needs_clarification = category_id is None
 
             duplicate_id = find_duplicate(db, t.date, t.amount) if existing is None else existing.is_duplicate_of
 
