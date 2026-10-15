@@ -284,11 +284,20 @@ create table split_preferences (
   id uuid primary key default gen_random_uuid(),
   merchant_key text,
   category_id uuid references categories(id) on delete cascade,
-  split_type text not null
-    check (split_type in ('equal', 'percentage', 'exact', 'shares')),
-  -- Per-user split values as last chosen (e.g. {"<user-uuid>": "50", ...}
-  -- for percentage/shares; null for equal). Reapplied as a starting
-  -- suggestion against the new amount, not force-matched.
+  is_shared boolean not null default false,
+  -- Only meaningful when is_shared — which split algorithm, mirroring
+  -- expenses.splits.split_type. Null for a personal-only history.
+  split_type text
+    check (split_type is null or split_type in ('equal', 'percentage', 'exact', 'shares')),
+  -- Marks the one-tap "owed by the other person" pattern specifically
+  -- (full amount to whoever didn't pay, 0 to the payer) so a future
+  -- suggestion re-selects that chip directly rather than a generic exact
+  -- split with raw numbers that happen to be 0/100.
+  owed_by_other boolean not null default false,
+  -- Per-user split values as last chosen (e.g. {"<user-uuid>": "50", ...})
+  -- for a non-equal general Shared split; null for equal/owed_by_other.
+  -- Reapplied as a starting suggestion against the new amount, not
+  -- force-matched.
   split_values jsonb,
   sample_count integer not null default 1,
   updated_at timestamptz not null default now()

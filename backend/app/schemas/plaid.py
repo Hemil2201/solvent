@@ -53,6 +53,14 @@ class PlaidTransactionOut(BaseModel):
     is_duplicate_of: uuid.UUID | None
     resolved_expense_id: uuid.UUID | None
     dismissed_at: str | None = None
+    # Suggestion derived from split_preferences — None on every field when
+    # there's no merchant or category history yet, in which case the client
+    # keeps its own "Personal" default.
+    suggested_is_shared: bool | None = None
+    suggested_split_type: str | None = None
+    suggested_owed_by_other: bool = False
+    suggested_split_values: dict[str, str] | None = None
+    suggestion_sample_count: int | None = None
 
 
 class ResolvePlaidTransactionRequest(BaseModel):
@@ -62,3 +70,7 @@ class ResolvePlaidTransactionRequest(BaseModel):
     split_type: str | None = None
     splits: list[SplitInput] | None = None
     confirm_duplicate: bool = False
+    # Explicit flag rather than inferring from splits being 0/100 — those
+    # could coincidentally match without being the dedicated "owed by the
+    # other person" pattern, and the client already knows which it meant.
+    owed_by_other: bool = False

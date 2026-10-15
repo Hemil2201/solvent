@@ -22,7 +22,9 @@ from app.schemas.plaid import (
     ResolvePlaidTransactionRequest,
     SyncSummary,
 )
+from app.models.split_preference import SplitPreference
 from app.services import plaid_client
+from app.services import split_preference_service
 from app.services.categorizer import llm_category, rules_based_category
 from app.services.duplicate_detector import find_duplicate
 from app.services.split_calculator import SplitValidationError, compute_splits
@@ -248,7 +250,12 @@ def sync_transactions(db: Session = Depends(get_db), current_user: User = Depend
     return SyncSummary(added=added_count, modified=modified_count, removed=removed_count)
 
 
-def _txn_to_out(txn: PlaidTransaction, account_name: str, institution_name: str | None) -> PlaidTransactionOut:
+def _txn_to_out(
+    txn: PlaidTransaction,
+    account_name: str,
+    institution_name: str | None,
+    suggestion: SplitPreference | None = None,
+) -> PlaidTransactionOut:
     return PlaidTransactionOut(
         id=txn.id,
         account_name=account_name,
@@ -263,6 +270,11 @@ def _txn_to_out(txn: PlaidTransaction, account_name: str, institution_name: str 
         is_duplicate_of=txn.is_duplicate_of,
         resolved_expense_id=txn.resolved_expense_id,
         dismissed_at=txn.dismissed_at.isoformat() if txn.dismissed_at else None,
+        suggested_is_shared=suggestion.is_shared if suggestion else None,
+        suggested_split_type=suggestion.split_type if suggestion else None,
+        suggested_owed_by_other=suggestion.owed_by_other if suggestion else False,
+        suggested_split_values=suggestion.split_values if suggestion else None,
+        suggestion_sample_count=suggestion.sample_count if suggestion else None,
     )
 
 
@@ -283,7 +295,12 @@ def list_transactions(
                     PlaidTransaction.resolved_expense_id.is_(None), PlaidTransaction.dismissed_at.is_(None)
                 )
             txns = db.execute(query.order_by(PlaidTransaction.raw_date.desc())).scalars()
-            results.extend(_txn_to_out(t, account.name, item.institution_name) for t in txns)
+            for t in txns:
+                merchant_key = split_preference_service.normalize_merchant_key(
+                    t.raw_merchant_name or t.raw_description
+                )
+                suggestion = split_preference_service.get_suggestion(db, merchant_key, t.matched_category_id)
+                results.append(_txn_to_out(t, account.name, item.institution_name, suggestion))
     results.sort(key=lambda r: r.raw_date or date.min, reverse=True)
     return results
 
@@ -344,6 +361,8 @@ def resolve_transaction(
         updated_at=now,
     )
 
+    split_type = None
+    raw_values = None
     if body.is_shared:
         split_type = body.split_type or "equal"
         participants = list(db.execute(select(User.id).order_by(User.name)).scalars())
@@ -360,6 +379,28 @@ def resolve_transaction(
     db.add(expense)
     db.flush()
     txn.resolved_expense_id = expense.id
+
+    # Remember this choice for next time — merchant-specific takes priority
+    # over category-wide (see split_preference_service.get_suggestion). The
+    # raw user-entered percentages/shares/exact values are stored (not the
+    # computed dollar amounts), since those are what generalize to a future
+    # transaction of a different amount; skipped entirely for "owed by the
+    # other person" (that's its own dedicated flag) and "equal" (nothing to
+    # replay).
+    merchant_key = split_preference_service.normalize_merchant_key(txn.raw_merchant_name or txn.raw_description)
+    split_values_to_store = (
+        raw_values if (body.is_shared and not body.owed_by_other and split_type != "equal") else None
+    )
+    split_preference_service.record_choice(
+        db,
+        merchant_key,
+        expense.category_id,
+        body.is_shared,
+        split_type,
+        body.owed_by_other,
+        split_values_to_store,
+    )
+
     db.commit()
     db.refresh(txn)
     return _txn_to_out(txn, account.name, item.institution_name)
