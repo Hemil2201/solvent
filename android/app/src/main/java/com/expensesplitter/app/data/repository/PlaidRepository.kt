@@ -2,6 +2,10 @@ package com.expensesplitter.app.data.repository
 
 import com.expensesplitter.app.data.remote.ApiService
 import com.expensesplitter.app.data.remote.dto.ExchangePublicTokenRequestDto
+import com.expensesplitter.app.data.remote.dto.PlaidAccountDto
+import com.expensesplitter.app.data.remote.dto.PlaidTransactionDto
+import com.expensesplitter.app.data.remote.dto.ResolvePlaidTransactionRequestDto
+import com.expensesplitter.app.data.remote.dto.SplitInputDto
 
 data class PlaidAccount(
     val id: String,
@@ -17,6 +21,27 @@ data class PlaidAccount(
     val institutionName: String?,
 )
 
+data class PlaidSyncSummary(val added: Int, val modified: Int, val removed: Int)
+
+data class PlaidTransaction(
+    val id: String,
+    val accountName: String,
+    val institutionName: String?,
+    val rawDate: String?,
+    val rawDescription: String?,
+    val rawMerchantName: String?,
+    val rawAmount: String?,
+    val pending: Boolean,
+    val matchedCategoryId: String?,
+    val needsClarification: Boolean,
+    val isDuplicateOf: String?,
+    val resolvedExpenseId: String?,
+) {
+    // Falls back through merchant name -> raw description -> a placeholder,
+    // same precedence used server-side when an expense is created from this.
+    val displayName: String get() = rawMerchantName ?: rawDescription ?: "(no description)"
+}
+
 class PlaidRepository(private val apiService: ApiService) {
     suspend fun createLinkToken(): String = apiService.createPlaidLinkToken().link_token
 
@@ -28,9 +53,39 @@ class PlaidRepository(private val apiService: ApiService) {
     suspend fun getAccounts(): List<PlaidAccount> = apiService.getPlaidAccounts().map { it.toDomain() }
 
     suspend fun unlinkItem(itemId: String) = apiService.unlinkPlaidItem(itemId)
+
+    suspend fun sync(): PlaidSyncSummary {
+        val dto = apiService.syncPlaidTransactions()
+        return PlaidSyncSummary(dto.added, dto.modified, dto.removed)
+    }
+
+    suspend fun getTransactions(unresolvedOnly: Boolean = true): List<PlaidTransaction> =
+        apiService.getPlaidTransactions(unresolvedOnly).map { it.toDomain() }
+
+    suspend fun resolveTransaction(
+        transactionId: String,
+        categoryId: String?,
+        isShared: Boolean,
+        splitType: String?,
+        splitValues: Map<String, String>?,
+        confirmDuplicate: Boolean,
+    ): PlaidTransaction {
+        val splits = splitValues?.map { (userId, value) -> SplitInputDto(userId, value) }
+        val body = ResolvePlaidTransactionRequestDto(
+            category_id = categoryId,
+            is_shared = isShared,
+            split_type = splitType,
+            splits = splits,
+            confirm_duplicate = confirmDuplicate,
+        )
+        return apiService.resolvePlaidTransaction(transactionId, body).toDomain()
+    }
+
+    suspend fun dismissTransaction(transactionId: String): PlaidTransaction =
+        apiService.dismissPlaidTransaction(transactionId).toDomain()
 }
 
-private fun com.expensesplitter.app.data.remote.dto.PlaidAccountDto.toDomain() = PlaidAccount(
+private fun PlaidAccountDto.toDomain() = PlaidAccount(
     id = id,
     itemId = item_id,
     name = name,
@@ -42,4 +97,19 @@ private fun com.expensesplitter.app.data.remote.dto.PlaidAccountDto.toDomain() =
     availableBalance = available_balance,
     currencyCode = iso_currency_code,
     institutionName = institution_name,
+)
+
+private fun PlaidTransactionDto.toDomain() = PlaidTransaction(
+    id = id,
+    accountName = account_name,
+    institutionName = institution_name,
+    rawDate = raw_date,
+    rawDescription = raw_description,
+    rawMerchantName = raw_merchant_name,
+    rawAmount = raw_amount,
+    pending = pending,
+    matchedCategoryId = matched_category_id,
+    needsClarification = needs_clarification,
+    isDuplicateOf = is_duplicate_of,
+    resolvedExpenseId = resolved_expense_id,
 )

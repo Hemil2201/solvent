@@ -29,6 +29,7 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.expensesplitter.app.di.AppContainer
 import com.expensesplitter.app.ui.screens.accounts.AccountsScreen
+import com.expensesplitter.app.ui.screens.accounts.TransactionReviewScreen
 import com.expensesplitter.app.ui.screens.activity.ActivityScreen
 import com.expensesplitter.app.ui.screens.budgets.BudgetsScreen
 import com.expensesplitter.app.ui.screens.dashboard.DashboardScreen
@@ -56,6 +57,7 @@ private val PUSHED_SCREEN_TITLES = mapOf(
     Screen.Recurring.route to "Recurring Expenses",
     Screen.Activity.route to "Activity",
     Screen.Accounts.route to "Linked Accounts",
+    Screen.PlaidTransactionReview.route to "Review Transactions",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,7 +184,17 @@ fun ExpenseSplitterNavGraph(
             )
         }
         composable(Screen.Accounts.route) {
-            AccountsScreen(plaidRepository = container.plaidRepository)
+            AccountsScreen(
+                plaidRepository = container.plaidRepository,
+                onReviewTransactions = { navController.navigate(Screen.PlaidTransactionReview.route) },
+            )
+        }
+        composable(Screen.PlaidTransactionReview.route) {
+            TransactionReviewScreen(
+                plaidRepository = container.plaidRepository,
+                expenseRepository = container.expenseRepository,
+                authRepository = container.authRepository,
+            )
         }
         composable(Screen.AddExpense.route) {
             AddExpenseScreen(

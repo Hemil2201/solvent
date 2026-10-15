@@ -17,6 +17,9 @@ import com.expensesplitter.app.data.remote.dto.LinkTokenResponseDto
 import com.expensesplitter.app.data.remote.dto.LoginRequestDto
 import com.expensesplitter.app.data.remote.dto.MonthlyReportDto
 import com.expensesplitter.app.data.remote.dto.PlaidAccountDto
+import com.expensesplitter.app.data.remote.dto.PlaidTransactionDto
+import com.expensesplitter.app.data.remote.dto.ResolvePlaidTransactionRequestDto
+import com.expensesplitter.app.data.remote.dto.SyncSummaryDto
 import com.expensesplitter.app.data.remote.dto.RecurringExpenseCreateDto
 import com.expensesplitter.app.data.remote.dto.RecurringExpenseDto
 import com.expensesplitter.app.data.remote.dto.RecurringExpenseUpdateDto
@@ -165,4 +168,19 @@ interface ApiService {
 
     @DELETE("plaid/items/{itemId}")
     suspend fun unlinkPlaidItem(@Path("itemId") itemId: String)
+
+    @POST("plaid/sync")
+    suspend fun syncPlaidTransactions(): SyncSummaryDto
+
+    @GET("plaid/transactions")
+    suspend fun getPlaidTransactions(@Query("unresolved_only") unresolvedOnly: Boolean = true): List<PlaidTransactionDto>
+
+    @POST("plaid/transactions/{transactionId}/resolve")
+    suspend fun resolvePlaidTransaction(
+        @Path("transactionId") transactionId: String,
+        @Body body: ResolvePlaidTransactionRequestDto,
+    ): PlaidTransactionDto
+
+    @POST("plaid/transactions/{transactionId}/dismiss")
+    suspend fun dismissPlaidTransaction(@Path("transactionId") transactionId: String): PlaidTransactionDto
 }

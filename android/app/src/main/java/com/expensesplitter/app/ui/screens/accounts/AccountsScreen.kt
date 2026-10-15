@@ -14,11 +14,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LinkOff
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,7 +43,7 @@ import com.plaid.link.result.LinkExit
 import com.plaid.link.result.LinkSuccess
 
 @Composable
-fun AccountsScreen(plaidRepository: PlaidRepository) {
+fun AccountsScreen(plaidRepository: PlaidRepository, onReviewTransactions: () -> Unit) {
     val viewModel: AccountsViewModel = viewModel(
         factory = viewModelFactory { initializer { AccountsViewModel(plaidRepository) } },
     )
@@ -100,6 +102,10 @@ fun AccountsScreen(plaidRepository: PlaidRepository) {
                         message = "Add a bank or card to see balances and import transactions.",
                     )
                 } else {
+                    OutlinedButton(onClick = onReviewTransactions, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
+                        Text("Review Transactions")
+                    }
                     // Private per person by design — this list only ever
                     // contains accounts the signed-in user linked themselves.
                     s.accounts.groupBy { it.institutionName to it.itemId }.forEach { (key, accounts) ->

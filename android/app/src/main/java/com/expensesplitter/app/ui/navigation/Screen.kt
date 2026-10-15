@@ -22,6 +22,7 @@ sealed class Screen(val route: String) {
     data object ReceiptScan : Screen("receipt_scan")
     data object Activity : Screen("activity")
     data object Accounts : Screen("accounts")
+    data object PlaidTransactionReview : Screen("plaid_transaction_review")
     // "Dashboard" is the user-facing name for this tab; the Kotlin object is
     // named Insights to avoid clashing with Screen.Dashboard (the Home tab).
     data object Insights : Screen("insights")
