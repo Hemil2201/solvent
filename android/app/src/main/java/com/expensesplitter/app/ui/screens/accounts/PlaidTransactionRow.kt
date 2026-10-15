@@ -43,6 +43,12 @@ import com.expensesplitter.app.ui.theme.BalanceColors
 import com.expensesplitter.app.ui.theme.Spacing
 import com.expensesplitter.app.ui.util.sanitizeMoneyInput
 
+// Who the expense belongs to. A single chip whose label just swapped between
+// "Personal"/"Shared" didn't show there was a choice at all — three chips
+// shown together (matching the SPLIT_TYPES row pattern below) make every
+// option visible up front instead of something you only discover by tapping.
+private enum class ShareMode { PERSONAL, SHARED, OWED_BY_OTHER }
+
 // Business-card-style compact row: the common case is a pre-filled category
 // + "Personal" default and one tap on Add — not a form to fill in per
 // transaction. Editing only expands into a split-values form when the user
@@ -52,6 +58,7 @@ fun PlaidTransactionRow(
     txn: PlaidTransaction,
     categories: List<Category>,
     users: List<CurrentUser>,
+    currentUserId: String?,
     onResolve: (
         categoryId: String?,
         isShared: Boolean,
@@ -62,8 +69,10 @@ fun PlaidTransactionRow(
     ) -> Unit,
     onDismiss: (onError: (String) -> Unit) -> Unit,
 ) {
+    val otherUser = users.firstOrNull { it.id != currentUserId }
+
     var selectedCategoryId by remember(txn.id) { mutableStateOf(txn.matchedCategoryId) }
-    var isShared by remember(txn.id) { mutableStateOf(false) }
+    var shareMode by remember(txn.id) { mutableStateOf(ShareMode.PERSONAL) }
     var splitType by remember(txn.id) { mutableStateOf("equal") }
     var splitValues by remember(txn.id) { mutableStateOf(mapOf<String, String>()) }
     // Starts true for a flagged duplicate so the banner shows immediately;
@@ -160,14 +169,40 @@ fun PlaidTransactionRow(
                         }
                     }
                 }
+            }
+
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
                 FilterChip(
-                    selected = isShared,
-                    onClick = { isShared = !isShared },
-                    label = { Text(if (isShared) "Shared" else "Personal") },
+                    selected = shareMode == ShareMode.PERSONAL,
+                    onClick = { shareMode = ShareMode.PERSONAL },
+                    label = { Text("Personal") },
+                )
+                FilterChip(
+                    selected = shareMode == ShareMode.SHARED,
+                    onClick = { shareMode = ShareMode.SHARED },
+                    label = { Text("Shared") },
+                )
+                if (otherUser != null) {
+                    FilterChip(
+                        selected = shareMode == ShareMode.OWED_BY_OTHER,
+                        onClick = { shareMode = ShareMode.OWED_BY_OTHER },
+                        label = { Text("Owed by ${otherUser.name}") },
+                    )
+                }
+            }
+
+            if (shareMode == ShareMode.OWED_BY_OTHER && otherUser != null) {
+                Text(
+                    "${otherUser.name} owes the full ${txn.rawAmount ?: "amount"} — you paid, nothing split your way.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            if (isShared) {
+            if (shareMode == ShareMode.SHARED) {
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
@@ -215,11 +250,23 @@ fun PlaidTransactionRow(
                                 return@Button
                             }
                             isSubmitting = true
+                            val isShared = shareMode != ShareMode.PERSONAL
+                            val resolvedSplitType = when (shareMode) {
+                                ShareMode.PERSONAL -> null
+                                ShareMode.SHARED -> splitType
+                                ShareMode.OWED_BY_OTHER -> "exact"
+                            }
+                            val resolvedSplitValues = when {
+                                shareMode == ShareMode.SHARED && splitType != "equal" -> splitValues
+                                shareMode == ShareMode.OWED_BY_OTHER && otherUser != null && currentUserId != null ->
+                                    mapOf(otherUser.id to (txn.rawAmount ?: "0"), currentUserId to "0")
+                                else -> null
+                            }
                             onResolve(
                                 selectedCategoryId,
                                 isShared,
-                                if (isShared) splitType else null,
-                                if (isShared && splitType != "equal") splitValues else null,
+                                resolvedSplitType,
+                                resolvedSplitValues,
                                 false,
                             ) { error = it; isSubmitting = false }
                         },

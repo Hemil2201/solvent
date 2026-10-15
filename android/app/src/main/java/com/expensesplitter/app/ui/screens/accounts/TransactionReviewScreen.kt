@@ -55,6 +55,7 @@ fun TransactionReviewScreen(
         },
     )
     val state = viewModel.state
+    val currentUserId = authRepository.getSessionUser()?.id
 
     // A fresh pull every time this screen is reached — it's a recurring
     // inbox, not a one-shot wizard, so "whatever's new since last time"
@@ -123,6 +124,7 @@ fun TransactionReviewScreen(
                                     txn = txn,
                                     categories = state.categories,
                                     users = state.users,
+                                    currentUserId = currentUserId,
                                     onResolve = { categoryId, isShared, splitType, splitValues, confirmDuplicate, onError ->
                                         viewModel.resolve(txn.id, categoryId, isShared, splitType, splitValues, confirmDuplicate, onError)
                                     },
