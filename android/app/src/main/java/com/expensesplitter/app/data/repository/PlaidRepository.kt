@@ -36,10 +36,19 @@ data class PlaidTransaction(
     val needsClarification: Boolean,
     val isDuplicateOf: String?,
     val resolvedExpenseId: String?,
+    val suggestedIsShared: Boolean?,
+    val suggestedSplitType: String?,
+    val suggestedOwedByOther: Boolean,
+    val suggestedSplitValues: Map<String, String>?,
+    val suggestionSampleCount: Int?,
 ) {
     // Falls back through merchant name -> raw description -> a placeholder,
     // same precedence used server-side when an expense is created from this.
     val displayName: String get() = rawMerchantName ?: rawDescription ?: "(no description)"
+
+    // True whenever there's history to show a "you've done this before" hint
+    // for — including a prior Personal choice, not just a Shared one.
+    val hasSuggestion: Boolean get() = suggestionSampleCount != null
 }
 
 class PlaidRepository(private val apiService: ApiService) {
@@ -69,6 +78,7 @@ class PlaidRepository(private val apiService: ApiService) {
         splitType: String?,
         splitValues: Map<String, String>?,
         confirmDuplicate: Boolean,
+        owedByOther: Boolean = false,
     ): PlaidTransaction {
         val splits = splitValues?.map { (userId, value) -> SplitInputDto(userId, value) }
         val body = ResolvePlaidTransactionRequestDto(
@@ -77,6 +87,7 @@ class PlaidRepository(private val apiService: ApiService) {
             split_type = splitType,
             splits = splits,
             confirm_duplicate = confirmDuplicate,
+            owed_by_other = owedByOther,
         )
         return apiService.resolvePlaidTransaction(transactionId, body).toDomain()
     }
@@ -112,4 +123,9 @@ private fun PlaidTransactionDto.toDomain() = PlaidTransaction(
     needsClarification = needs_clarification,
     isDuplicateOf = is_duplicate_of,
     resolvedExpenseId = resolved_expense_id,
+    suggestedIsShared = suggested_is_shared,
+    suggestedSplitType = suggested_split_type,
+    suggestedOwedByOther = suggested_owed_by_other,
+    suggestedSplitValues = suggested_split_values,
+    suggestionSampleCount = suggestion_sample_count,
 )

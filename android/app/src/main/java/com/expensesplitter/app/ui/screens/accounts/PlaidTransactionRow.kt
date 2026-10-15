@@ -65,16 +65,26 @@ fun PlaidTransactionRow(
         splitType: String?,
         splitValues: Map<String, String>?,
         confirmDuplicate: Boolean,
+        owedByOther: Boolean,
         onError: (String) -> Unit,
     ) -> Unit,
     onDismiss: (onError: (String) -> Unit) -> Unit,
 ) {
     val otherUser = users.firstOrNull { it.id != currentUserId }
 
+    // Pre-fill from this merchant/category's history (same user's own past
+    // choices, nothing guessed) instead of always defaulting to Personal —
+    // the common case becomes zero taps instead of one.
+    val initialShareMode = when {
+        txn.suggestedOwedByOther -> ShareMode.OWED_BY_OTHER
+        txn.suggestedIsShared == true -> ShareMode.SHARED
+        else -> ShareMode.PERSONAL
+    }
+
     var selectedCategoryId by remember(txn.id) { mutableStateOf(txn.matchedCategoryId) }
-    var shareMode by remember(txn.id) { mutableStateOf(ShareMode.PERSONAL) }
-    var splitType by remember(txn.id) { mutableStateOf("equal") }
-    var splitValues by remember(txn.id) { mutableStateOf(mapOf<String, String>()) }
+    var shareMode by remember(txn.id) { mutableStateOf(initialShareMode) }
+    var splitType by remember(txn.id) { mutableStateOf(txn.suggestedSplitType ?: "equal") }
+    var splitValues by remember(txn.id) { mutableStateOf(txn.suggestedSplitValues ?: mapOf()) }
     // Starts true for a flagged duplicate so the banner shows immediately;
     // "Not a duplicate" just dismisses the banner locally and falls through
     // to the normal Add flow below — it doesn't change what Add sends.
@@ -139,13 +149,22 @@ fun PlaidTransactionRow(
                                 enabled = !isSubmitting,
                                 onClick = {
                                     isSubmitting = true
-                                    onResolve(null, false, null, null, true) { error = it; isSubmitting = false }
+                                    onResolve(null, false, null, null, true, false) { error = it; isSubmitting = false }
                                 },
                             ) { Text("Skip, it's a duplicate") }
                             TextButton(onClick = { showDuplicateBanner = false }) { Text("Not a duplicate") }
                         }
                     }
                 }
+            }
+
+            if (txn.hasSuggestion) {
+                Text(
+                    "You've usually handled this one this way" +
+                        (txn.suggestionSampleCount?.takeIf { it > 1 }?.let { " ($it times)" } ?: "") + " — pre-filled below.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
 
             Row(
@@ -268,6 +287,7 @@ fun PlaidTransactionRow(
                                 resolvedSplitType,
                                 resolvedSplitValues,
                                 false,
+                                shareMode == ShareMode.OWED_BY_OTHER,
                             ) { error = it; isSubmitting = false }
                         },
                     ) { Text("Add") }

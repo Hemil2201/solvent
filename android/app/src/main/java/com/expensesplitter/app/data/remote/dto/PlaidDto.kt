@@ -45,6 +45,11 @@ data class PlaidTransactionDto(
     val is_duplicate_of: String? = null,
     val resolved_expense_id: String? = null,
     val dismissed_at: String? = null,
+    val suggested_is_shared: Boolean? = null,
+    val suggested_split_type: String? = null,
+    val suggested_owed_by_other: Boolean = false,
+    val suggested_split_values: Map<String, String>? = null,
+    val suggestion_sample_count: Int? = null,
 )
 
 @Serializable
@@ -55,4 +60,5 @@ data class ResolvePlaidTransactionRequestDto(
     val split_type: String? = null,
     val splits: List<SplitInputDto>? = null,
     val confirm_duplicate: Boolean = false,
+    val owed_by_other: Boolean = false,
 )

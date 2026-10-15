@@ -75,11 +75,14 @@ class TransactionReviewViewModel(
         splitType: String?,
         splitValues: Map<String, String>?,
         confirmDuplicate: Boolean,
+        owedByOther: Boolean,
         onError: (String) -> Unit,
     ) {
         viewModelScope.launch {
             try {
-                plaidRepository.resolveTransaction(transactionId, categoryId, isShared, splitType, splitValues, confirmDuplicate)
+                plaidRepository.resolveTransaction(
+                    transactionId, categoryId, isShared, splitType, splitValues, confirmDuplicate, owedByOther,
+                )
                 state = state.copy(transactions = state.transactions.filter { it.id != transactionId })
             } catch (e: Exception) {
                 onError(e.message ?: "Failed to add expense")
