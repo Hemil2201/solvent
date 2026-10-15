@@ -263,6 +263,11 @@ create table plaid_transactions (
   user_clarification_note text,
   is_duplicate_of uuid references expenses(id),
   resolved_expense_id uuid references expenses(id),
+  -- Set when the user explicitly skips a transaction that shouldn't become
+  -- an expense (a transfer between their own accounts, etc.) — distinct
+  -- from resolved_expense_id so "dismissed" and "turned into an expense"
+  -- are never confused in the review queue's unresolved-count.
+  dismissed_at timestamptz,
   created_at timestamptz not null default now()
 );
 

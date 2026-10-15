@@ -37,4 +37,7 @@ class PlaidTransaction(Base):
     resolved_expense_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("expenses.id"), nullable=True
     )
+    # Set when the user explicitly skips a transaction that shouldn't become
+    # an expense (a transfer between their own accounts, etc.).
+    dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
