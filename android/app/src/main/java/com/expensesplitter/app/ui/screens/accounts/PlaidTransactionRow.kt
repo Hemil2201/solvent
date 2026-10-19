@@ -171,6 +171,24 @@ fun PlaidTransactionRow(
                         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                     ) {
                         Text("Possible duplicate", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        // Without this, "Possible duplicate" alone gives no
+                        // way to actually judge whether it's right — this is
+                        // what it's comparing against.
+                        txn.duplicateOfExpense?.let { matched ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    "Matches ${matched.description ?: "an expense"} · $${matched.amount} on ${matched.date}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                TextButton(onClick = { onOpenExpense(matched.id) }) { Text("View it") }
+                            }
+                        }
                         Row(
                             modifier = Modifier.horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),

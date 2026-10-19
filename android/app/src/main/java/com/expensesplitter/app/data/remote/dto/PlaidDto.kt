@@ -46,6 +46,7 @@ data class PlaidTransactionDto(
     val matched_category_id: String? = null,
     val needs_clarification: Boolean,
     val is_duplicate_of: String? = null,
+    val duplicate_of_expense: ExpenseRefDto? = null,
     val resolved_expense_id: String? = null,
     val dismissed_at: String? = null,
     val possible_duplicate: ExpenseRefDto? = null,
