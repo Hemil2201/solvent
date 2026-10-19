@@ -111,6 +111,11 @@ object BalanceColors {
     // Brighter variants tuned for the dark Ink hero card.
     val positiveOnInk = GreenOnInk
     val negativeOnInk = RedOnInk
+
+    // Budget "getting close to the limit" state — distinct from the
+    // red/green over/under semantics above, so it needs its own color
+    // rather than reusing either.
+    val warningLight = Color(0xFFF59E0B)
 }
 
 // Vivid, saturated category palette — replaces the previous pastel-muted

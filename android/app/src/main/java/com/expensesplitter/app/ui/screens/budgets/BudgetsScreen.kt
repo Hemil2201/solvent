@@ -30,7 +30,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,13 +47,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.expensesplitter.app.data.repository.BudgetRepository
 import com.expensesplitter.app.data.repository.CategoryBudgetSummary
+import com.expensesplitter.app.ui.components.AccentCard
 import com.expensesplitter.app.ui.components.CategoryIcon
 import com.expensesplitter.app.ui.components.EmptyState
 import com.expensesplitter.app.ui.components.MonthPager
 import com.expensesplitter.app.ui.components.SkeletonList
 import com.expensesplitter.app.ui.theme.BalanceColors
-import com.expensesplitter.app.ui.theme.HeroShapes
 import com.expensesplitter.app.ui.theme.Spacing
+import com.expensesplitter.app.ui.theme.categoryColorFor
 import com.expensesplitter.app.ui.util.sanitizeMoneyInput
 
 private data class EditingTarget(
@@ -124,7 +124,7 @@ fun BudgetsScreen(budgetRepository: BudgetRepository) {
                         verticalArrangement = Arrangement.spacedBy(Spacing.md),
                     ) {
                         items(categoriesWithTargets) { (category, personalWithTarget) ->
-                            Surface(shape = HeroShapes.heroCard, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                            AccentCard(accent = categoryColorFor(category.categoryName)) {
                                 CategoryBudgetSection(category, personalWithTarget) { userId, label, current ->
                                     editing = EditingTarget(userId, category.categoryId, label, current)
                                 }
@@ -165,7 +165,7 @@ private fun CategoryBudgetSection(
     personalWithTarget: List<com.expensesplitter.app.data.repository.PersonalBudgetLine>,
     onEditTarget: (userId: String?, label: String, currentValue: String) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             CategoryIcon(categoryName = category.categoryName, icon = null, size = 32.dp)
             Text(
@@ -195,11 +195,23 @@ private fun CategoryBudgetSection(
     }
 }
 
+// 80% is the usual "heads up, you're getting close" threshold — early
+// enough to actually adjust spending for the rest of the month, not just a
+// moment before going over.
+private const val NEAR_LIMIT_THRESHOLD = 0.8
+
 @Composable
 private fun BudgetProgressRow(label: String, target: String?, actual: String, onClick: () -> Unit) {
     val targetValue = target?.toDoubleOrNull()
     val actualValue = actual.toDoubleOrNull() ?: 0.0
     val isOverBudget = targetValue != null && targetValue > 0 && actualValue > targetValue
+    val fraction = if (targetValue != null && targetValue > 0) (actualValue / targetValue).toFloat() else 0f
+    val isNearLimit = !isOverBudget && fraction >= NEAR_LIMIT_THRESHOLD
+    val stateColor = when {
+        isOverBudget -> BalanceColors.negativeLight
+        isNearLimit -> BalanceColors.warningLight
+        else -> BalanceColors.positiveLight
+    }
 
     Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.xs)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -208,15 +220,14 @@ private fun BudgetProgressRow(label: String, target: String?, actual: String, on
                 "$$actual / $$target",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isOverBudget) BalanceColors.negativeLight else MaterialTheme.colorScheme.onSurface,
+                color = if (isOverBudget || isNearLimit) stateColor else MaterialTheme.colorScheme.onSurface,
             )
         }
         if (targetValue != null && targetValue > 0) {
-            val fraction = (actualValue / targetValue).toFloat().coerceIn(0f, 1f)
             LinearProgressIndicator(
-                progress = { fraction },
+                progress = { fraction.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs).height(8.dp),
-                color = if (isOverBudget) BalanceColors.negativeLight else BalanceColors.positiveLight,
+                color = stateColor,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
             )
@@ -224,7 +235,14 @@ private fun BudgetProgressRow(label: String, target: String?, actual: String, on
                 Text(
                     "Over by $${"%.2f".format(actualValue - targetValue)}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = BalanceColors.negativeLight,
+                    color = stateColor,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+            } else if (isNearLimit) {
+                Text(
+                    "Getting close",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = stateColor,
                     modifier = Modifier.padding(top = Spacing.xs),
                 )
             }

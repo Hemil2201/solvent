@@ -19,6 +19,8 @@ data class PlaidAccount(
     val availableBalance: String?,
     val currencyCode: String?,
     val institutionName: String?,
+    val institutionColor: String?,
+    val institutionLogo: String?,
 )
 
 data class PlaidSyncSummary(val added: Int, val modified: Int, val removed: Int)
@@ -32,6 +34,7 @@ data class PlaidTransaction(
     val rawMerchantName: String?,
     val rawAmount: String?,
     val pending: Boolean,
+    val logoUrl: String?,
     val matchedCategoryId: String?,
     val needsClarification: Boolean,
     val isDuplicateOf: String?,
@@ -108,12 +111,15 @@ private fun PlaidAccountDto.toDomain() = PlaidAccount(
     availableBalance = available_balance,
     currencyCode = iso_currency_code,
     institutionName = institution_name,
+    institutionColor = institution_color,
+    institutionLogo = institution_logo,
 )
 
 private fun PlaidTransactionDto.toDomain() = PlaidTransaction(
     id = id,
     accountName = account_name,
     institutionName = institution_name,
+    logoUrl = logo_url,
     rawDate = raw_date,
     rawDescription = raw_description,
     rawMerchantName = raw_merchant_name,

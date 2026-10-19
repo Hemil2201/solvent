@@ -25,6 +25,8 @@ data class PlaidAccountDto(
     val available_balance: String? = null,
     val iso_currency_code: String? = null,
     val institution_name: String? = null,
+    val institution_color: String? = null,
+    val institution_logo: String? = null,
 )
 
 @Serializable
@@ -40,6 +42,7 @@ data class PlaidTransactionDto(
     val raw_merchant_name: String? = null,
     val raw_amount: String? = null,
     val pending: Boolean,
+    val logo_url: String? = null,
     val matched_category_id: String? = null,
     val needs_clarification: Boolean,
     val is_duplicate_of: String? = null,

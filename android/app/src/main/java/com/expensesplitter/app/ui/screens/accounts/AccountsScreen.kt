@@ -28,14 +28,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.expensesplitter.app.data.repository.PlaidAccount
 import com.expensesplitter.app.data.repository.PlaidRepository
+import com.expensesplitter.app.ui.components.AccentCard
 import com.expensesplitter.app.ui.components.EmptyState
-import com.expensesplitter.app.ui.components.SectionCard
+import com.expensesplitter.app.ui.components.InstitutionIcon
+import com.expensesplitter.app.ui.theme.MoneyType
 import com.expensesplitter.app.ui.theme.Spacing
 import com.plaid.link.OpenPlaidLink
 import com.plaid.link.configuration.LinkTokenConfiguration
@@ -112,6 +116,8 @@ fun AccountsScreen(plaidRepository: PlaidRepository, onReviewTransactions: () ->
                         val (institutionName, itemId) = key
                         InstitutionCard(
                             institutionName = institutionName ?: "Linked account",
+                            institutionColor = accounts.first().institutionColor,
+                            institutionLogo = accounts.first().institutionLogo,
                             accounts = accounts,
                             onUnlink = { viewModel.unlink(itemId) },
                         )
@@ -123,28 +129,44 @@ fun AccountsScreen(plaidRepository: PlaidRepository, onReviewTransactions: () ->
 }
 
 @Composable
-private fun InstitutionCard(institutionName: String, accounts: List<PlaidAccount>, onUnlink: () -> Unit) {
-    SectionCard(
-        title = institutionName,
-        trailing = {
-            IconButton(onClick = onUnlink) {
-                Icon(Icons.Filled.LinkOff, contentDescription = "Unlink $institutionName")
+private fun InstitutionCard(
+    institutionName: String,
+    institutionColor: String?,
+    institutionLogo: String?,
+    accounts: List<PlaidAccount>,
+    onUnlink: () -> Unit,
+) {
+    val accent = institutionColor
+        ?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
+        ?: MaterialTheme.colorScheme.onSurfaceVariant
+
+    AccentCard(accent = accent) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    InstitutionIcon(institutionName = institutionName, colorHex = institutionColor, logoBase64 = institutionLogo, size = 32.dp)
+                    Text(institutionName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+                IconButton(onClick = onUnlink) {
+                    Icon(Icons.Filled.LinkOff, contentDescription = "Unlink $institutionName")
+                }
             }
-        },
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             accounts.forEach { account ->
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column {
-                        Text(account.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(account.name, style = MaterialTheme.typography.bodyMedium)
                         account.mask?.let {
                             Text("•••• $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Text(
                         "${account.currencyCode ?: ""} ${account.currentBalance ?: "—"}".trim(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MoneyType.small,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }

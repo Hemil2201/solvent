@@ -81,6 +81,7 @@ import com.expensesplitter.app.data.repository.ExpenseFilter
 import com.expensesplitter.app.data.repository.ExpenseRepository
 import com.expensesplitter.app.data.repository.PendingCategoryFilterHolder
 import com.expensesplitter.app.ui.components.CategoryIcon
+import com.expensesplitter.app.ui.components.MerchantIcon
 import com.expensesplitter.app.ui.components.EmptyState
 import com.expensesplitter.app.ui.components.SkeletonList
 import com.expensesplitter.app.ui.theme.BalanceColors
@@ -456,7 +457,7 @@ private fun ExpenseRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-            CategoryIcon(categoryName = category?.name ?: "Other", icon = category?.icon)
+            MerchantIcon(logoUrl = expense.merchantLogoUrl, categoryName = category?.name ?: "Other", categoryIcon = category?.icon)
             Spacer(Modifier.width(Spacing.md))
             Column {
                 Text(

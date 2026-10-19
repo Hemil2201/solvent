@@ -38,6 +38,7 @@ import com.expensesplitter.app.data.repository.Category
 import com.expensesplitter.app.data.repository.CurrentUser
 import com.expensesplitter.app.data.repository.PlaidTransaction
 import com.expensesplitter.app.ui.components.CategoryIcon
+import com.expensesplitter.app.ui.components.MerchantIcon
 import com.expensesplitter.app.ui.screens.expense.SPLIT_TYPES
 import com.expensesplitter.app.ui.theme.BalanceColors
 import com.expensesplitter.app.ui.theme.Spacing
@@ -98,32 +99,40 @@ fun PlaidTransactionRow(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    MerchantIcon(
+                        logoUrl = txn.logoUrl,
+                        categoryName = selectedCategory?.name ?: "?",
+                        categoryIcon = selectedCategory?.icon,
+                        size = 36.dp,
+                    )
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Text(
+                                txn.displayName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (txn.pending) {
+                                Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                                    Text(
+                                        "Pending",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = Spacing.xs, vertical = 2.dp),
+                                    )
+                                }
+                            }
+                        }
                         Text(
-                            txn.displayName,
-                            style = MaterialTheme.typography.bodyLarge,
+                            "${txn.accountName}${txn.institutionName?.let { " · $it" } ?: ""}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (txn.pending) {
-                            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                                Text(
-                                    "Pending",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = Spacing.xs, vertical = 2.dp),
-                                )
-                            }
-                        }
                     }
-                    Text(
-                        "${txn.accountName}${txn.institutionName?.let { " · $it" } ?: ""}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
                 Text(
                     txn.rawAmount ?: "—",
@@ -138,13 +147,20 @@ fun PlaidTransactionRow(
                     shape = RoundedCornerShape(10.dp),
                     color = BalanceColors.negativeLight.copy(alpha = 0.12f),
                 ) {
-                    Row(
+                    // Label gets its own line rather than sharing a row with
+                    // the buttons — squeezed next to "Skip, it's a
+                    // duplicate" + "Not a duplicate" on a phone-width screen,
+                    // the buttons' Text had so little width left that Compose
+                    // wrapped it one character per line.
+                    Column(
                         modifier = Modifier.fillMaxWidth().padding(Spacing.sm),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                     ) {
                         Text("Possible duplicate", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        ) {
                             TextButton(
                                 enabled = !isSubmitting,
                                 onClick = {

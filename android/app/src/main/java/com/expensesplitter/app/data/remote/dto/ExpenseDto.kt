@@ -35,6 +35,7 @@ data class ExpenseDto(
     val paid_by: String,
     val is_shared: Boolean,
     val receipt_photo_url: String? = null,
+    val merchant_logo_url: String? = null,
     val source: String,
     val created_by: String,
     val created_at: String,

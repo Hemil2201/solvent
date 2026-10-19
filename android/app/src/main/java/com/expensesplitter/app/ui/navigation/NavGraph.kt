@@ -168,19 +168,13 @@ fun ExpenseSplitterNavGraph(
             DashboardScreen(
                 authRepository = container.authRepository,
                 expenseRepository = container.expenseRepository,
+                plaidRepository = container.plaidRepository,
                 onUploadStatement = { navController.navigate(Screen.StatementUpload.route) },
                 onScanReceipt = { navController.navigate(Screen.ReceiptScan.route) },
                 onViewRecurring = { navController.navigate(Screen.Recurring.route) },
                 onViewActivity = { navController.navigate(Screen.Activity.route) },
                 onViewAccounts = { navController.navigate(Screen.Accounts.route) },
-                onOpenCategory = { categoryId ->
-                    container.pendingCategoryFilterHolder.categoryId = categoryId
-                    navController.navigate(Screen.ExpenseList.route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onReviewTransactions = { navController.navigate(Screen.PlaidTransactionReview.route) },
             )
         }
         composable(Screen.Accounts.route) {
