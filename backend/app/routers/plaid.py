@@ -362,6 +362,7 @@ def resolve_transaction(
         currency="USD",
         date=txn.raw_date,
         description=txn.raw_merchant_name or txn.raw_description,
+        notes=body.notes,
         category_id=body.category_id or txn.matched_category_id,
         paid_by=body.paid_by or current_user.id,
         is_shared=body.is_shared,

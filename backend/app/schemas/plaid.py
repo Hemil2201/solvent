@@ -80,3 +80,6 @@ class ResolvePlaidTransactionRequest(BaseModel):
     # Optional display/traceability link for a refund back to the original
     # purchase it's returning — doesn't affect split/balance/budget math.
     refund_of_expense_id: uuid.UUID | None = None
+    # Free-text memo — the one piece of context Plaid never gives us (e.g.
+    # "this is the keyboard order" when there are 5 Amazon charges).
+    notes: str | None = None
