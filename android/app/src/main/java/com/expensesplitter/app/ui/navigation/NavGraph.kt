@@ -35,6 +35,7 @@ import com.expensesplitter.app.ui.screens.budgets.BudgetsScreen
 import com.expensesplitter.app.ui.screens.dashboard.DashboardScreen
 import com.expensesplitter.app.ui.screens.expense.AddExpenseScreen
 import com.expensesplitter.app.ui.screens.expense.DeletedExpensesScreen
+import com.expensesplitter.app.ui.screens.expense.DuplicateExpensesScreen
 import com.expensesplitter.app.ui.screens.expense.ExpenseDetailScreen
 import com.expensesplitter.app.ui.screens.expense.ExpenseListScreen
 import com.expensesplitter.app.ui.screens.insights.InsightsScreen
@@ -53,6 +54,7 @@ private val PUSHED_SCREEN_TITLES = mapOf(
     Screen.ReceiptScan.route to "Scan Receipt",
     Screen.ExpenseDetail.route to "Expense Detail",
     Screen.DeletedExpenses.route to "Recently Deleted",
+    Screen.DuplicateExpenses.route to "Possible Duplicates",
     Screen.StatementUpload.route to "Upload Statement",
     Screen.Recurring.route to "Recurring Expenses",
     Screen.Activity.route to "Activity",
@@ -226,6 +228,7 @@ fun ExpenseSplitterNavGraph(
                 onAddExpense = { navController.navigate(Screen.AddExpense.route) },
                 onOpenExpense = { id -> navController.navigate(Screen.ExpenseDetail.buildRoute(id)) },
                 onViewDeleted = { navController.navigate(Screen.DeletedExpenses.route) },
+                onViewDuplicates = { navController.navigate(Screen.DuplicateExpenses.route) },
             )
         }
         composable(
@@ -243,6 +246,12 @@ fun ExpenseSplitterNavGraph(
         }
         composable(Screen.DeletedExpenses.route) {
             DeletedExpensesScreen(expenseRepository = container.expenseRepository)
+        }
+        composable(Screen.DuplicateExpenses.route) {
+            DuplicateExpensesScreen(
+                expenseRepository = container.expenseRepository,
+                onOpenExpense = { id -> navController.navigate(Screen.ExpenseDetail.buildRoute(id)) },
+            )
         }
         composable(Screen.StatementUpload.route) {
             StatementUploadScreen(

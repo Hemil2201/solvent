@@ -114,6 +114,9 @@ class ExpenseRepository(
 
     suspend fun getExpense(id: String): Expense = apiService.getExpense(id).toDomain()
 
+    suspend fun getDuplicateGroups(): List<List<ExpenseRef>> =
+        apiService.getDuplicateExpenses().map { group -> group.expenses.map { it.toDomain() } }
+
     suspend fun createExpense(body: ExpenseCreateDto): Expense = apiService.createExpense(body).toDomain()
 
     suspend fun updateExpense(id: String, body: ExpenseUpdateDto): Expense = apiService.updateExpense(id, body).toDomain()

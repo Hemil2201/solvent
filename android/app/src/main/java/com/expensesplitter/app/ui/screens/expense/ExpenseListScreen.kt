@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -102,6 +103,7 @@ fun ExpenseListScreen(
     onAddExpense: () -> Unit,
     onOpenExpense: (String) -> Unit,
     onViewDeleted: () -> Unit,
+    onViewDuplicates: () -> Unit,
 ) {
     val viewModel: ExpenseListViewModel = viewModel(
         factory = viewModelFactory { initializer { ExpenseListViewModel(expenseRepository, authRepository) } },
@@ -165,6 +167,7 @@ fun ExpenseListScreen(
                 onPickStartDate = { datePickerTarget = "start" },
                 onPickEndDate = { datePickerTarget = "end" },
                 onViewDeleted = onViewDeleted,
+                onViewDuplicates = onViewDuplicates,
             )
 
             Crossfade(targetState = state.isLoading, animationSpec = tween(250), label = "expenses-loading") { loading ->
@@ -257,6 +260,7 @@ private fun FilterBar(
     onPickStartDate: () -> Unit,
     onPickEndDate: () -> Unit,
     onViewDeleted: () -> Unit,
+    onViewDuplicates: () -> Unit,
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val activeCount = listOfNotNull(
@@ -288,6 +292,9 @@ private fun FilterBar(
                 }
             }
             Spacer(Modifier.weight(1f))
+            IconButton(onClick = onViewDuplicates) {
+                Icon(Icons.Filled.Warning, contentDescription = "Find Duplicates")
+            }
             IconButton(onClick = onViewDeleted) {
                 Icon(Icons.Filled.DeleteOutline, contentDescription = "Recently Deleted")
             }

@@ -56,6 +56,9 @@ data class ExpenseDto(
 )
 
 @Serializable
+data class DuplicateGroupDto(val expenses: List<ExpenseRefDto>)
+
+@Serializable
 data class ExpenseUpdateDto(
     val amount: String? = null,
     val currency: String? = null,

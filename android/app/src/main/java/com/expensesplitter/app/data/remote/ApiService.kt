@@ -6,6 +6,7 @@ import com.expensesplitter.app.data.remote.dto.BudgetDto
 import com.expensesplitter.app.data.remote.dto.BudgetSetDto
 import com.expensesplitter.app.data.remote.dto.BudgetSummaryResponseDto
 import com.expensesplitter.app.data.remote.dto.CategoryDto
+import com.expensesplitter.app.data.remote.dto.DuplicateGroupDto
 import com.expensesplitter.app.data.remote.dto.ExpenseCommentCreateDto
 import com.expensesplitter.app.data.remote.dto.ExpenseCommentDto
 import com.expensesplitter.app.data.remote.dto.ExpenseCreateDto
@@ -69,6 +70,9 @@ interface ApiService {
         @Query("deleted_only") deletedOnly: Boolean? = null,
         @Query("q") search: String? = null,
     ): List<ExpenseDto>
+
+    @GET("expenses/duplicates")
+    suspend fun getDuplicateExpenses(): List<DuplicateGroupDto>
 
     @GET("expenses/{id}")
     suspend fun getExpense(@Path("id") id: String): ExpenseDto
