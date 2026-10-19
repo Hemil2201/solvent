@@ -178,10 +178,7 @@ fun ExpenseSplitterNavGraph(
             )
         }
         composable(Screen.Accounts.route) {
-            AccountsScreen(
-                plaidRepository = container.plaidRepository,
-                onReviewTransactions = { navController.navigate(Screen.PlaidTransactionReview.route) },
-            )
+            AccountsScreen(plaidRepository = container.plaidRepository)
         }
         composable(Screen.PlaidTransactionReview.route) {
             TransactionReviewScreen(

@@ -14,18 +14,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,11 +49,15 @@ import com.plaid.link.result.LinkExit
 import com.plaid.link.result.LinkSuccess
 
 @Composable
-fun AccountsScreen(plaidRepository: PlaidRepository, onReviewTransactions: () -> Unit) {
+fun AccountsScreen(plaidRepository: PlaidRepository) {
     val viewModel: AccountsViewModel = viewModel(
         factory = viewModelFactory { initializer { AccountsViewModel(plaidRepository) } },
     )
     val state = viewModel.state
+    // (itemId, institutionName) of the item pending a confirmation prompt —
+    // unlinking drops synced accounts/transactions for that bank, worth
+    // guarding against a stray tap.
+    var pendingUnlink by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     val linkLauncher = rememberLauncherForActivityResult(OpenPlaidLink()) { result ->
         when (result) {
@@ -106,25 +112,37 @@ fun AccountsScreen(plaidRepository: PlaidRepository, onReviewTransactions: () ->
                         message = "Add a bank or card to see balances and import transactions.",
                     )
                 } else {
-                    OutlinedButton(onClick = onReviewTransactions, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.padding(end = Spacing.xs))
-                        Text("Review Transactions")
-                    }
                     // Private per person by design — this list only ever
                     // contains accounts the signed-in user linked themselves.
                     s.accounts.groupBy { it.institutionName to it.itemId }.forEach { (key, accounts) ->
                         val (institutionName, itemId) = key
+                        val displayName = institutionName ?: "Linked account"
                         InstitutionCard(
-                            institutionName = institutionName ?: "Linked account",
+                            institutionName = displayName,
                             institutionColor = accounts.first().institutionColor,
                             institutionLogo = accounts.first().institutionLogo,
                             accounts = accounts,
-                            onUnlink = { viewModel.unlink(itemId) },
+                            onUnlink = { pendingUnlink = itemId to displayName },
                         )
                     }
                 }
             }
         }
+    }
+
+    pendingUnlink?.let { (itemId, institutionName) ->
+        AlertDialog(
+            onDismissRequest = { pendingUnlink = null },
+            title = { Text("Unlink $institutionName?") },
+            text = { Text("You'll stop syncing new transactions from this bank. Already-added expenses stay as they are.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingUnlink = null
+                    viewModel.unlink(itemId)
+                }) { Text("Unlink", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { pendingUnlink = null }) { Text("Cancel") } },
+        )
     }
 }
 
@@ -152,7 +170,7 @@ private fun InstitutionCard(
                     Text(institutionName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 }
                 IconButton(onClick = onUnlink) {
-                    Icon(Icons.Filled.LinkOff, contentDescription = "Unlink $institutionName")
+                    Icon(Icons.Filled.LinkOff, contentDescription = "Unlink $institutionName", tint = MaterialTheme.colorScheme.error)
                 }
             }
             accounts.forEach { account ->
