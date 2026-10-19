@@ -82,6 +82,7 @@ class PlaidRepository(private val apiService: ApiService) {
         splitValues: Map<String, String>?,
         confirmDuplicate: Boolean,
         owedByOther: Boolean = false,
+        refundOfExpenseId: String? = null,
     ): PlaidTransaction {
         val splits = splitValues?.map { (userId, value) -> SplitInputDto(userId, value) }
         val body = ResolvePlaidTransactionRequestDto(
@@ -91,6 +92,7 @@ class PlaidRepository(private val apiService: ApiService) {
             splits = splits,
             confirm_duplicate = confirmDuplicate,
             owed_by_other = owedByOther,
+            refund_of_expense_id = refundOfExpenseId,
         )
         return apiService.resolvePlaidTransaction(transactionId, body).toDomain()
     }

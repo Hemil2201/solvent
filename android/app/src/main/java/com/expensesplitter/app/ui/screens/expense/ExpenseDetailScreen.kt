@@ -46,6 +46,7 @@ import coil.compose.AsyncImage
 import com.expensesplitter.app.data.repository.AuthRepository
 import com.expensesplitter.app.data.repository.ExpenseRepository
 import com.expensesplitter.app.ui.components.CategoryIcon
+import com.expensesplitter.app.ui.theme.BalanceColors
 import com.expensesplitter.app.ui.theme.Spacing
 import com.expensesplitter.app.ui.util.formatActivityTimestamp
 
@@ -116,6 +117,18 @@ fun ExpenseDetailScreen(
             }
         }
         expense.notes?.let { Text("Notes: $it", style = MaterialTheme.typography.bodyMedium) }
+
+        if (expense.refunds.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                expense.refunds.forEach { refund ->
+                    Text(
+                        "↩ $${refund.amount} returned on ${refund.date}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BalanceColors.positiveLight,
+                    )
+                }
+            }
+        }
 
         expense.receiptPhotoUrl?.let { photoUrl ->
             Divider(modifier = Modifier.padding(vertical = 8.dp))

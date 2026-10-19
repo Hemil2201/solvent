@@ -16,6 +16,8 @@ data class Category(val id: String, val name: String, val icon: String?)
 
 data class ExpenseSplit(val userId: String, val amountOwed: String, val splitType: String)
 
+data class RefundSummary(val id: String, val amount: String, val date: String)
+
 data class Expense(
     val id: String,
     val amount: String,
@@ -30,6 +32,8 @@ data class Expense(
     val splits: List<ExpenseSplit>,
     val receiptPhotoUrl: String?,
     val merchantLogoUrl: String?,
+    val refundOfExpenseId: String? = null,
+    val refunds: List<RefundSummary> = emptyList(),
 )
 
 data class ExpenseComment(val id: String, val userId: String, val comment: String, val createdAt: String)
@@ -143,6 +147,8 @@ class ExpenseRepository(
         splits = splits.map { ExpenseSplit(it.user_id, it.amount_owed, it.split_type) },
         receiptPhotoUrl = receipt_photo_url,
         merchantLogoUrl = merchant_logo_url,
+        refundOfExpenseId = refund_of_expense_id,
+        refunds = refunds.map { RefundSummary(it.id, it.amount, it.date) },
     )
 
     private fun ExpenseDto.toEntity() =

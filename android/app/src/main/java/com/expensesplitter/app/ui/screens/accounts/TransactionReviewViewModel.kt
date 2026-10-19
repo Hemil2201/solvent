@@ -76,12 +76,14 @@ class TransactionReviewViewModel(
         splitValues: Map<String, String>?,
         confirmDuplicate: Boolean,
         owedByOther: Boolean,
+        refundOfExpenseId: String?,
         onError: (String) -> Unit,
     ) {
         viewModelScope.launch {
             try {
                 plaidRepository.resolveTransaction(
                     transactionId, categoryId, isShared, splitType, splitValues, confirmDuplicate, owedByOther,
+                    refundOfExpenseId,
                 )
                 state = state.copy(transactions = state.transactions.filter { it.id != transactionId })
             } catch (e: Exception) {

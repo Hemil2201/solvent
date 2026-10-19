@@ -64,4 +64,5 @@ data class ResolvePlaidTransactionRequestDto(
     val splits: List<SplitInputDto>? = null,
     val confirm_duplicate: Boolean = false,
     val owed_by_other: Boolean = false,
+    val refund_of_expense_id: String? = null,
 )

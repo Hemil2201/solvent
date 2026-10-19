@@ -24,6 +24,9 @@ data class ExpenseCreateDto(
 data class ExpenseSplitDto(val user_id: String, val split_type: String, val amount_owed: String)
 
 @Serializable
+data class RefundSummaryDto(val id: String, val amount: String, val date: String)
+
+@Serializable
 data class ExpenseDto(
     val id: String,
     val amount: String,
@@ -36,12 +39,16 @@ data class ExpenseDto(
     val is_shared: Boolean,
     val receipt_photo_url: String? = null,
     val merchant_logo_url: String? = null,
+    val refund_of_expense_id: String? = null,
     val source: String,
     val created_by: String,
     val created_at: String,
     val updated_at: String,
     val deleted_at: String? = null,
     val splits: List<ExpenseSplitDto> = emptyList(),
+    // Only present on the single-expense GET response — absent (defaults
+    // empty) from list/create/update responses.
+    val refunds: List<RefundSummaryDto> = emptyList(),
 )
 
 @Serializable

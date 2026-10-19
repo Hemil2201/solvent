@@ -36,6 +36,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.expensesplitter.app.data.repository.Category
 import com.expensesplitter.app.data.repository.CurrentUser
+import com.expensesplitter.app.data.repository.Expense
+import com.expensesplitter.app.data.repository.ExpenseRepository
 import com.expensesplitter.app.data.repository.PlaidTransaction
 import com.expensesplitter.app.ui.components.CategoryIcon
 import com.expensesplitter.app.ui.components.MerchantIcon
@@ -60,6 +62,7 @@ fun PlaidTransactionRow(
     categories: List<Category>,
     users: List<CurrentUser>,
     currentUserId: String?,
+    expenseRepository: ExpenseRepository,
     onResolve: (
         categoryId: String?,
         isShared: Boolean,
@@ -67,11 +70,17 @@ fun PlaidTransactionRow(
         splitValues: Map<String, String>?,
         confirmDuplicate: Boolean,
         owedByOther: Boolean,
+        refundOfExpenseId: String?,
         onError: (String) -> Unit,
     ) -> Unit,
     onDismiss: (onError: (String) -> Unit) -> Unit,
 ) {
     val otherUser = users.firstOrNull { it.id != currentUserId }
+    // Plaid's sign convention: negative = money in, i.e. a refund/return
+    // rather than a purchase.
+    val isRefund = (txn.rawAmount?.toDoubleOrNull() ?: 0.0) < 0
+    var linkedExpense by remember(txn.id) { mutableStateOf<Expense?>(null) }
+    var showRefundPicker by remember { mutableStateOf(false) }
 
     // Pre-fill from this merchant/category's history (same user's own past
     // choices, nothing guessed) instead of always defaulting to Personal —
@@ -138,6 +147,7 @@ fun PlaidTransactionRow(
                     txn.rawAmount ?: "—",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
+                    color = if (isRefund) BalanceColors.positiveLight else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(start = Spacing.sm),
                 )
             }
@@ -165,7 +175,7 @@ fun PlaidTransactionRow(
                                 enabled = !isSubmitting,
                                 onClick = {
                                     isSubmitting = true
-                                    onResolve(null, false, null, null, true, false) { error = it; isSubmitting = false }
+                                    onResolve(null, false, null, null, true, false, null) { error = it; isSubmitting = false }
                                 },
                             ) { Text("Skip, it's a duplicate") }
                             TextButton(onClick = { showDuplicateBanner = false }) { Text("Not a duplicate") }
@@ -181,6 +191,22 @@ fun PlaidTransactionRow(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+
+            if (isRefund) {
+                val linked = linkedExpense
+                if (linked == null) {
+                    AssistChip(
+                        onClick = { showRefundPicker = true },
+                        label = { Text("Link to original purchase") },
+                    )
+                } else {
+                    AssistChip(
+                        onClick = { linkedExpense = null },
+                        label = { Text("Returning: ${linked.description ?: "expense"} · $${linked.amount}") },
+                        trailingIcon = { Text("✕", style = MaterialTheme.typography.labelSmall) },
+                    )
+                }
             }
 
             Row(
@@ -304,11 +330,21 @@ fun PlaidTransactionRow(
                                 resolvedSplitValues,
                                 false,
                                 shareMode == ShareMode.OWED_BY_OTHER,
+                                linkedExpense?.id,
                             ) { error = it; isSubmitting = false }
                         },
                     ) { Text("Add") }
                 }
             }
         }
+    }
+
+    if (showRefundPicker) {
+        RefundPickerDialog(
+            merchantName = txn.displayName,
+            expenseRepository = expenseRepository,
+            onDismiss = { showRefundPicker = false },
+            onPick = { expense -> linkedExpense = expense; showRefundPicker = false },
+        )
     }
 }
