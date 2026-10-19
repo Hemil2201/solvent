@@ -59,7 +59,11 @@ create unique index budgets_group_unique
 -- =========================================================== expenses ====
 create table expenses (
   id uuid primary key default gen_random_uuid(),
-  amount numeric(12, 2) not null check (amount >= 0),
+  -- No lower bound: a refund/return is its own Expense with a negative
+  -- amount (same sign convention Plaid uses), not a reduction applied to
+  -- the original purchase — nets out correctly in balance/budget totals
+  -- with no special-casing needed there.
+  amount numeric(12, 2) not null,
   currency varchar(3) not null default 'USD',
   date date not null,
   description text,
@@ -71,6 +75,10 @@ create table expenses (
   -- Carried over from the source PlaidTransaction's logo_url at resolve
   -- time, if any — null for manual/statement/receipt-sourced expenses.
   merchant_logo_url text,
+  -- Optional display/traceability link from a refund back to the
+  -- original purchase it's returning — purely informational, doesn't
+  -- affect any split/balance/budget math.
+  refund_of_expense_id uuid references expenses(id) on delete set null,
   source text not null default 'manual'
     check (source in ('manual', 'statement_upload', 'receipt_scan', 'recurring')),
   -- FK to statement_transactions added below (after that table exists) to
@@ -101,7 +109,9 @@ create table expense_splits (
   user_id uuid not null references users(id),
   split_type text not null
     check (split_type in ('equal', 'percentage', 'exact', 'shares')),
-  amount_owed numeric(12, 2) not null check (amount_owed >= 0),
+  -- No lower bound, matching expenses.amount — a shared refund's splits
+  -- are negative too (money owed back, not owed).
+  amount_owed numeric(12, 2) not null,
   unique (expense_id, user_id)
 );
 

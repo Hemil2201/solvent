@@ -77,3 +77,6 @@ class ResolvePlaidTransactionRequest(BaseModel):
     # could coincidentally match without being the dedicated "owed by the
     # other person" pattern, and the client already knows which it meant.
     owed_by_other: bool = False
+    # Optional display/traceability link for a refund back to the original
+    # purchase it's returning — doesn't affect split/balance/budget math.
+    refund_of_expense_id: uuid.UUID | None = None

@@ -17,9 +17,11 @@ from app.schemas.expense import (
     ExpenseCommentCreate,
     ExpenseCommentOut,
     ExpenseCreate,
+    ExpenseDetailOut,
     ExpenseEditHistoryOut,
     ExpenseOut,
     ExpenseUpdate,
+    RefundSummaryOut,
 )
 from app.services.split_calculator import SplitValidationError, compute_splits
 
@@ -56,16 +58,23 @@ def list_expenses(
     return list(db.execute(query).scalars())
 
 
-@router.get("/{expense_id}", response_model=ExpenseOut)
+@router.get("/{expense_id}", response_model=ExpenseDetailOut)
 def get_expense(
     expense_id: uuid.UUID, db: Session = Depends(get_db), _: User = Depends(get_current_user)
-) -> Expense:
+) -> ExpenseDetailOut:
     expense = db.execute(
         select(Expense).options(selectinload(Expense.splits)).where(Expense.id == expense_id)
     ).scalar_one_or_none()
     if expense is None:
         raise HTTPException(status_code=404, detail="Expense not found")
-    return expense
+
+    refunds = db.execute(
+        select(Expense).where(Expense.refund_of_expense_id == expense_id, Expense.deleted_at.is_(None))
+    ).scalars()
+
+    return ExpenseDetailOut.model_validate(expense).model_copy(
+        update={"refunds": [RefundSummaryOut.model_validate(r) for r in refunds]}
+    )
 
 
 @router.post("", response_model=ExpenseOut)

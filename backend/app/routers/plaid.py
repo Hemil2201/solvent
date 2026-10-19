@@ -366,6 +366,7 @@ def resolve_transaction(
         paid_by=body.paid_by or current_user.id,
         is_shared=body.is_shared,
         merchant_logo_url=txn.logo_url,
+        refund_of_expense_id=body.refund_of_expense_id,
         source="plaid_sync",
         source_transaction_id=txn.id,
         created_by=current_user.id,

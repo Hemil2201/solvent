@@ -48,12 +48,27 @@ class ExpenseOut(BaseModel):
     is_shared: bool
     receipt_photo_url: str | None
     merchant_logo_url: str | None
+    refund_of_expense_id: uuid.UUID | None
     source: str
     created_by: uuid.UUID
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
     splits: list[ExpenseSplitOut] = []
+
+
+class RefundSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    amount: Decimal
+    date: date_type
+
+
+class ExpenseDetailOut(ExpenseOut):
+    # Only populated by GET /expenses/{id} — kept off the base ExpenseOut
+    # so list_expenses doesn't pay for a refunds lookup on every row.
+    refunds: list[RefundSummaryOut] = []
 
 
 class ExpenseUpdate(BaseModel):

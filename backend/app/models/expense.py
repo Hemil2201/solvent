@@ -25,6 +25,12 @@ class Expense(Base):
     # Carried over from the source PlaidTransaction's logo_url at resolve
     # time, if any — null for manual/statement/receipt-sourced expenses.
     merchant_logo_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Optional display/traceability link from a refund back to the
+    # original purchase it's returning — purely informational, doesn't
+    # affect any split/balance/budget math.
+    refund_of_expense_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True
+    )
     source: Mapped[str] = mapped_column(String, nullable=False, default="manual")
     source_transaction_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
