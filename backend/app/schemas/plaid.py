@@ -54,6 +54,10 @@ class PlaidTransactionOut(BaseModel):
     matched_category_id: uuid.UUID | None
     needs_clarification: bool
     is_duplicate_of: uuid.UUID | None
+    # Details of the expense is_duplicate_of points to — without this the
+    # "Possible duplicate" banner was just the word "duplicate" with
+    # nothing to actually compare against or judge.
+    duplicate_of_expense: ExpenseRefOut | None = None
     resolved_expense_id: uuid.UUID | None
     dismissed_at: str | None = None
     # Broader than is_duplicate_of (same merchant within a day, any

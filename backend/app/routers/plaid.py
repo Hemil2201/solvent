@@ -262,12 +262,19 @@ def sync_transactions(db: Session = Depends(get_db), current_user: User = Depend
 
 
 def _txn_to_out(
+    db: Session,
     txn: PlaidTransaction,
     account_name: str,
     institution_name: str | None,
     suggestion: SplitPreference | None = None,
     possible_duplicate: Expense | None = None,
 ) -> PlaidTransactionOut:
+    duplicate_of_expense = None
+    if txn.is_duplicate_of is not None:
+        matched = db.execute(select(Expense).where(Expense.id == txn.is_duplicate_of)).scalar_one_or_none()
+        if matched is not None:
+            duplicate_of_expense = ExpenseRefOut.model_validate(matched)
+
     return PlaidTransactionOut(
         id=txn.id,
         account_name=account_name,
@@ -281,6 +288,7 @@ def _txn_to_out(
         matched_category_id=txn.matched_category_id,
         needs_clarification=txn.needs_clarification,
         is_duplicate_of=txn.is_duplicate_of,
+        duplicate_of_expense=duplicate_of_expense,
         resolved_expense_id=txn.resolved_expense_id,
         dismissed_at=txn.dismissed_at.isoformat() if txn.dismissed_at else None,
         possible_duplicate=ExpenseRefOut.model_validate(possible_duplicate) if possible_duplicate else None,
@@ -323,7 +331,7 @@ def list_transactions(
                     possible_duplicate = find_possible_duplicate(
                         db, t.raw_merchant_name or t.raw_description, t.raw_date
                     )
-                results.append(_txn_to_out(t, account.name, item.institution_name, suggestion, possible_duplicate))
+                results.append(_txn_to_out(db, t, account.name, item.institution_name, suggestion, possible_duplicate))
     results.sort(key=lambda r: r.raw_date or date.min, reverse=True)
     return results
 
@@ -357,7 +365,7 @@ def resolve_transaction(
         db.refresh(txn)
         account = db.execute(select(PlaidAccount).where(PlaidAccount.id == txn.plaid_account_id)).scalar_one()
         item = db.execute(select(PlaidItem).where(PlaidItem.id == account.plaid_item_id)).scalar_one()
-        return _txn_to_out(txn, account.name, item.institution_name)
+        return _txn_to_out(db, txn, account.name, item.institution_name)
 
     if txn.raw_date is None or txn.raw_amount is None:
         raise HTTPException(status_code=422, detail="Transaction is missing a date or amount")
@@ -429,7 +437,7 @@ def resolve_transaction(
 
     db.commit()
     db.refresh(txn)
-    return _txn_to_out(txn, account.name, item.institution_name)
+    return _txn_to_out(db, txn, account.name, item.institution_name)
 
 
 @router.post("/transactions/{transaction_id}/dismiss", response_model=PlaidTransactionOut)
@@ -444,4 +452,4 @@ def dismiss_transaction(
     db.refresh(txn)
     account = db.execute(select(PlaidAccount).where(PlaidAccount.id == txn.plaid_account_id)).scalar_one()
     item = db.execute(select(PlaidItem).where(PlaidItem.id == account.plaid_item_id)).scalar_one()
-    return _txn_to_out(txn, account.name, item.institution_name)
+    return _txn_to_out(db, txn, account.name, item.institution_name)
