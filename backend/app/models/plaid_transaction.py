@@ -28,6 +28,10 @@ class PlaidTransaction(Base):
     raw_merchant_name: Mapped[str | None] = mapped_column(String, nullable=True)
     raw_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Plaid-hosted merchant logo URL, when Plaid has one for this specific
+    # transaction — commonly null for smaller/less-enriched merchants, in
+    # which case the client falls back to the category icon.
+    logo_url: Mapped[str | None] = mapped_column(String, nullable=True)
     matched_category_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("categories.id"), nullable=True
     )

@@ -68,6 +68,9 @@ create table expenses (
   paid_by uuid not null references users(id),
   is_shared boolean not null default false,
   receipt_photo_url text,
+  -- Carried over from the source PlaidTransaction's logo_url at resolve
+  -- time, if any — null for manual/statement/receipt-sourced expenses.
+  merchant_logo_url text,
   source text not null default 'manual'
     check (source in ('manual', 'statement_upload', 'receipt_scan', 'recurring')),
   -- FK to statement_transactions added below (after that table exists) to
@@ -196,6 +199,12 @@ create table plaid_items (
   plaid_item_id text not null unique,
   plaid_institution_id text,
   institution_name text,
+  -- Both from Plaid's /institutions/get_by_id, fetched once at link time.
+  -- Color is a hex string (Plaid always returns one — real or a
+  -- deterministic fallback); logo is a base64-encoded 152x152 PNG and
+  -- genuinely null for institutions Plaid has no logo for.
+  institution_color text,
+  institution_logo text,
   -- Fernet-encrypted at rest (app/services/token_encryption.py) — this is
   -- the one real secret in the whole DB, never logged or returned to the
   -- client in any response.
@@ -258,6 +267,9 @@ create table plaid_transactions (
   raw_merchant_name text,
   raw_amount numeric(12, 2),
   pending boolean not null default false,
+  -- Plaid-hosted merchant logo URL for this specific transaction, when
+  -- Plaid has one — commonly null for smaller/less-enriched merchants.
+  logo_url text,
   matched_category_id uuid references categories(id),
   needs_clarification boolean not null default false,
   user_clarification_note text,

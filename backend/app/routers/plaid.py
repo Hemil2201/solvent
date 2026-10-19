@@ -33,7 +33,7 @@ from app.services.token_encryption import decrypt_token, encrypt_token
 router = APIRouter(prefix="/plaid", tags=["plaid"])
 
 
-def _to_out(account: PlaidAccount, institution_name: str | None) -> PlaidAccountOut:
+def _to_out(account: PlaidAccount, item: PlaidItem) -> PlaidAccountOut:
     return PlaidAccountOut(
         id=account.id,
         item_id=account.plaid_item_id,
@@ -45,7 +45,9 @@ def _to_out(account: PlaidAccount, institution_name: str | None) -> PlaidAccount
         current_balance=account.current_balance,
         available_balance=account.available_balance,
         iso_currency_code=account.iso_currency_code,
-        institution_name=institution_name,
+        institution_name=item.institution_name,
+        institution_color=item.institution_color,
+        institution_logo=item.institution_logo,
     )
 
 
@@ -64,12 +66,18 @@ def exchange_public_token(
     access_token, item_id = plaid_client.exchange_public_token(body.public_token)
     now = datetime.now(timezone.utc)
 
+    institution_color, institution_logo = (
+        plaid_client.get_institution_branding(body.institution_id) if body.institution_id else (None, None)
+    )
+
     item = PlaidItem(
         id=uuid.uuid4(),
         user_id=current_user.id,
         plaid_item_id=item_id,
         plaid_institution_id=body.institution_id,
         institution_name=body.institution_name,
+        institution_color=institution_color,
+        institution_logo=institution_logo,
         access_token_encrypted=encrypt_token(access_token),
         status="active",
         created_at=now,
@@ -100,7 +108,7 @@ def exchange_public_token(
     db.commit()
     for a in accounts:
         db.refresh(a)
-    return [_to_out(a, item.institution_name) for a in accounts]
+    return [_to_out(a, item) for a in accounts]
 
 
 @router.get("/accounts", response_model=list[PlaidAccountOut])
@@ -126,7 +134,7 @@ def list_accounts(db: Session = Depends(get_db), current_user: User = Depends(ge
             # Refresh failed (e.g. item needs re-auth) — fall back to the
             # last-known stored balances rather than dropping this item's
             # accounts from the list entirely.
-            results.extend(_to_out(a, item.institution_name) for a in existing_by_plaid_id.values())
+            results.extend(_to_out(a, item) for a in existing_by_plaid_id.values())
             continue
 
         for b in balances:
@@ -143,7 +151,7 @@ def list_accounts(db: Session = Depends(get_db), current_user: User = Depends(ge
             account.available_balance = b["available_balance"]
             account.iso_currency_code = b["iso_currency_code"]
             account.updated_at = now
-            results.append(_to_out(account, item.institution_name))
+            results.append(_to_out(account, item))
 
     db.commit()
     return results
@@ -223,6 +231,7 @@ def sync_transactions(db: Session = Depends(get_db), current_user: User = Depend
                         matched_category_id=category_id,
                         needs_clarification=needs_clarification,
                         is_duplicate_of=duplicate_id,
+                        logo_url=t.logo_url,
                         created_at=datetime.now(timezone.utc),
                     )
                 )
@@ -233,6 +242,7 @@ def sync_transactions(db: Session = Depends(get_db), current_user: User = Depend
                 existing.raw_merchant_name = t.merchant_name
                 existing.raw_amount = t.amount
                 existing.pending = t.pending
+                existing.logo_url = t.logo_url
                 modified_count += 1
 
         for t in result["removed"]:
@@ -265,6 +275,7 @@ def _txn_to_out(
         raw_merchant_name=txn.raw_merchant_name,
         raw_amount=txn.raw_amount,
         pending=txn.pending,
+        logo_url=txn.logo_url,
         matched_category_id=txn.matched_category_id,
         needs_clarification=txn.needs_clarification,
         is_duplicate_of=txn.is_duplicate_of,
@@ -354,6 +365,7 @@ def resolve_transaction(
         category_id=body.category_id or txn.matched_category_id,
         paid_by=body.paid_by or current_user.id,
         is_shared=body.is_shared,
+        merchant_logo_url=txn.logo_url,
         source="plaid_sync",
         source_transaction_id=txn.id,
         created_by=current_user.id,

@@ -4,6 +4,8 @@ import plaid
 from plaid.api import plaid_api
 from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
 from plaid.model.country_code import CountryCode
+from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
+from plaid.model.institutions_get_by_id_request_options import InstitutionsGetByIdRequestOptions
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.item_remove_request import ItemRemoveRequest
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
@@ -47,6 +49,27 @@ def exchange_public_token(public_token: str) -> tuple[str, str]:
     (app/services/token_encryption.py) before it touches the DB."""
     response = _client().item_public_token_exchange(ItemPublicTokenExchangeRequest(public_token=public_token))
     return response.access_token, response.item_id
+
+
+def get_institution_branding(institution_id: str) -> tuple[str | None, str | None]:
+    """Returns (primary_color, logo) for an institution — color is a hex
+    string (Plaid always returns one, real or a deterministic fallback),
+    logo is a base64-encoded 152x152 PNG and genuinely None when Plaid
+    doesn't have one on file. Best-effort: a lookup failure (unknown
+    institution_id, API hiccup) shouldn't block linking the account, so the
+    caller gets (None, None) instead of a raised exception."""
+    try:
+        response = _client().institutions_get_by_id(
+            InstitutionsGetByIdRequest(
+                institution_id=institution_id,
+                country_codes=[CountryCode("US")],
+                options=InstitutionsGetByIdRequestOptions(include_optional_metadata=True),
+            )
+        )
+    except Exception:
+        return None, None
+    institution = response.institution
+    return institution.primary_color, institution.logo
 
 
 def get_balances(access_token: str) -> list[dict]:

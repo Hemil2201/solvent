@@ -47,6 +47,7 @@ class ExpenseOut(BaseModel):
     paid_by: uuid.UUID
     is_shared: bool
     receipt_photo_url: str | None
+    merchant_logo_url: str | None
     source: str
     created_by: uuid.UUID
     created_at: datetime

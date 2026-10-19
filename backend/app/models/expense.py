@@ -22,6 +22,9 @@ class Expense(Base):
     paid_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     is_shared: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     receipt_photo_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Carried over from the source PlaidTransaction's logo_url at resolve
+    # time, if any — null for manual/statement/receipt-sourced expenses.
+    merchant_logo_url: Mapped[str | None] = mapped_column(String, nullable=True)
     source: Mapped[str] = mapped_column(String, nullable=False, default="manual")
     source_transaction_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)

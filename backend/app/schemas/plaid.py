@@ -31,6 +31,8 @@ class PlaidAccountOut(BaseModel):
     available_balance: Decimal | None
     iso_currency_code: str | None
     institution_name: str | None
+    institution_color: str | None
+    institution_logo: str | None
 
 
 class SyncSummary(BaseModel):
@@ -48,6 +50,7 @@ class PlaidTransactionOut(BaseModel):
     raw_merchant_name: str | None
     raw_amount: Decimal | None
     pending: bool
+    logo_url: str | None
     matched_category_id: uuid.UUID | None
     needs_clarification: bool
     is_duplicate_of: uuid.UUID | None

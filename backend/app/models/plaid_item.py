@@ -18,6 +18,16 @@ class PlaidItem(Base):
     plaid_item_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     plaid_institution_id: Mapped[str | None] = mapped_column(String, nullable=True)
     institution_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Hex string from Plaid's /institutions/get_by_id — real brand color per
+    # bank, used for the account card accent. Plaid returns a deterministic
+    # fallback when it has no real color on file, so this is effectively
+    # never null for an institution we could look up.
+    institution_color: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Base64-encoded 152x152 PNG, same /institutions/get_by_id response —
+    # genuinely null for institutions Plaid has no logo for (unlike color,
+    # which always has a fallback). Client falls back to the color+initial
+    # badge in that case.
+    institution_logo: Mapped[str | None] = mapped_column(String, nullable=True)
     # Fernet-encrypted (app/services/token_encryption.py) — decrypt only
     # in-memory, right before a Plaid API call. Never log or return this.
     access_token_encrypted: Mapped[str] = mapped_column(String, nullable=False)
