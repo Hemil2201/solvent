@@ -8,6 +8,7 @@ import com.expensesplitter.app.data.remote.ApiService
 import com.expensesplitter.app.data.remote.dto.ExpenseCommentCreateDto
 import com.expensesplitter.app.data.remote.dto.ExpenseCreateDto
 import com.expensesplitter.app.data.remote.dto.ExpenseDto
+import com.expensesplitter.app.data.remote.dto.ExpenseRefDto
 import com.expensesplitter.app.data.remote.dto.ExpenseUpdateDto
 
 data class ActivityItem(val type: String, val timestamp: String, val userName: String, val message: String)
@@ -16,7 +17,9 @@ data class Category(val id: String, val name: String, val icon: String?)
 
 data class ExpenseSplit(val userId: String, val amountOwed: String, val splitType: String)
 
-data class RefundSummary(val id: String, val amount: String, val date: String)
+// Lightweight pointer to another expense — a refund's children, its
+// parent, or a possible-duplicate candidate.
+data class ExpenseRef(val id: String, val description: String?, val amount: String, val date: String)
 
 data class Expense(
     val id: String,
@@ -34,7 +37,10 @@ data class Expense(
     val merchantLogoUrl: String?,
     val refundOfExpenseId: String? = null,
     val hasRefunds: Boolean = false,
-    val refunds: List<RefundSummary> = emptyList(),
+    val hasPossibleDuplicate: Boolean = false,
+    val refunds: List<ExpenseRef> = emptyList(),
+    val refundOf: ExpenseRef? = null,
+    val possibleDuplicates: List<ExpenseRef> = emptyList(),
 )
 
 data class ExpenseComment(val id: String, val userId: String, val comment: String, val createdAt: String)
@@ -153,8 +159,13 @@ class ExpenseRepository(
         merchantLogoUrl = merchant_logo_url,
         refundOfExpenseId = refund_of_expense_id,
         hasRefunds = has_refunds,
-        refunds = refunds.map { RefundSummary(it.id, it.amount, it.date) },
+        hasPossibleDuplicate = has_possible_duplicate,
+        refunds = refunds.map { it.toDomain() },
+        refundOf = refund_of?.toDomain(),
+        possibleDuplicates = possible_duplicates.map { it.toDomain() },
     )
+
+    private fun ExpenseRefDto.toDomain() = ExpenseRef(id, description, amount, date)
 
     private fun ExpenseDto.toEntity() =
         ExpenseEntity(id, amount, currency, date, description, category_id, paid_by, is_shared)

@@ -56,6 +56,7 @@ fun ExpenseDetailScreen(
     expenseRepository: ExpenseRepository,
     authRepository: AuthRepository,
     onDeleted: () -> Unit,
+    onOpenExpense: (String) -> Unit,
 ) {
     val viewModel: ExpenseDetailViewModel = viewModel(
         factory = viewModelFactory {
@@ -118,6 +119,15 @@ fun ExpenseDetailScreen(
         }
         expense.notes?.let { Text("Notes: $it", style = MaterialTheme.typography.bodyMedium) }
 
+        expense.refundOf?.let { parent ->
+            Text(
+                "↩ Refund of ${parent.description ?: "expense"} · $${parent.amount} on ${parent.date}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = BalanceColors.positiveLight,
+                modifier = Modifier.clickable { onOpenExpense(parent.id) },
+            )
+        }
+
         if (expense.refunds.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 expense.refunds.forEach { refund ->
@@ -125,6 +135,20 @@ fun ExpenseDetailScreen(
                         "↩ $${refund.amount} returned on ${refund.date}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = BalanceColors.positiveLight,
+                        modifier = Modifier.clickable { onOpenExpense(refund.id) },
+                    )
+                }
+            }
+        }
+
+        if (expense.possibleDuplicates.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                expense.possibleDuplicates.forEach { dup ->
+                    Text(
+                        "⚠ Possible duplicate: ${dup.description ?: "expense"} · $${dup.amount} on ${dup.date}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BalanceColors.warningLight,
+                        modifier = Modifier.clickable { onOpenExpense(dup.id) },
                     )
                 }
             }

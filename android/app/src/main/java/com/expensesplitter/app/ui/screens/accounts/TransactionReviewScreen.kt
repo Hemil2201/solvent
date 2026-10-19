@@ -126,10 +126,10 @@ fun TransactionReviewScreen(
                                     users = state.users,
                                     currentUserId = currentUserId,
                                     expenseRepository = expenseRepository,
-                                    onResolve = { categoryId, isShared, splitType, splitValues, confirmDuplicate, owedByOther, refundOfExpenseId, onError ->
+                                    onResolve = { categoryId, isShared, splitType, splitValues, confirmDuplicate, owedByOther, refundOfExpenseId, notes, onError ->
                                         viewModel.resolve(
                                             txn.id, categoryId, isShared, splitType, splitValues, confirmDuplicate, owedByOther,
-                                            refundOfExpenseId, onError,
+                                            refundOfExpenseId, notes, onError,
                                         )
                                     },
                                     onDismiss = { onError -> viewModel.dismiss(txn.id, onError) },

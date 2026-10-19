@@ -237,6 +237,7 @@ fun ExpenseSplitterNavGraph(
                 expenseRepository = container.expenseRepository,
                 authRepository = container.authRepository,
                 onDeleted = { navController.popBackStack() },
+                onOpenExpense = { id -> navController.navigate(Screen.ExpenseDetail.buildRoute(id)) },
             )
         }
         composable(Screen.DeletedExpenses.route) {

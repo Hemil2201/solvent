@@ -71,6 +71,7 @@ fun PlaidTransactionRow(
         confirmDuplicate: Boolean,
         owedByOther: Boolean,
         refundOfExpenseId: String?,
+        notes: String?,
         onError: (String) -> Unit,
     ) -> Unit,
     onDismiss: (onError: (String) -> Unit) -> Unit,
@@ -81,6 +82,8 @@ fun PlaidTransactionRow(
     val isRefund = (txn.rawAmount?.toDoubleOrNull() ?: 0.0) < 0
     var linkedExpense by remember(txn.id) { mutableStateOf<Expense?>(null) }
     var showRefundPicker by remember { mutableStateOf(false) }
+    var showNoteField by remember(txn.id) { mutableStateOf(false) }
+    var noteText by remember(txn.id) { mutableStateOf("") }
 
     // Pre-fill from this merchant/category's history (same user's own past
     // choices, nothing guessed) instead of always defaulting to Personal —
@@ -175,7 +178,7 @@ fun PlaidTransactionRow(
                                 enabled = !isSubmitting,
                                 onClick = {
                                     isSubmitting = true
-                                    onResolve(null, false, null, null, true, false, null) { error = it; isSubmitting = false }
+                                    onResolve(null, false, null, null, true, false, null, null) { error = it; isSubmitting = false }
                                 },
                             ) { Text("Skip, it's a duplicate") }
                             TextButton(onClick = { showDuplicateBanner = false }) { Text("Not a duplicate") }
@@ -230,6 +233,22 @@ fun PlaidTransactionRow(
                         }
                     }
                 }
+            }
+
+            // Not every transaction needs one, so it starts collapsed behind
+            // a chip — but a quick way to tell apart "which of 5 Amazon
+            // orders was this" is worth one tap to reach.
+            if (showNoteField || noteText.isNotBlank()) {
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    label = { Text("Note") },
+                    placeholder = { Text("e.g. keyboard order") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                AssistChip(onClick = { showNoteField = true }, label = { Text("Add a note") })
             }
 
             Row(
@@ -331,6 +350,7 @@ fun PlaidTransactionRow(
                                 false,
                                 shareMode == ShareMode.OWED_BY_OTHER,
                                 linkedExpense?.id,
+                                noteText.trim().ifBlank { null },
                             ) { error = it; isSubmitting = false }
                         },
                     ) { Text("Add") }
