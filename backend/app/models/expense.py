@@ -2,9 +2,9 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, exists
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.db import Base
 
@@ -39,3 +39,22 @@ class Expense(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     splits: Mapped[list["ExpenseSplit"]] = relationship(back_populates="expense", cascade="all, delete-orphan")
+
+
+# Self-referential — defined after the class body since it needs Expense.id
+# fully available. Computed in SQL (a correlated EXISTS) rather than a
+# Python-side query per row, so it rides along with the normal list query
+# at no extra round trip — lets the Expenses list show "this was refunded"
+# without fetching each refund's full detail (that stays on the
+# single-expense endpoint only, via ExpenseDetailOut.refunds).
+#
+# Built from the Core Table (Expense.__table__), not orm.aliased(Expense) —
+# aliased() forces immediate mapper configuration at import time, which
+# breaks if this module happens to be imported before app.models.expense_split
+# registers the "ExpenseSplit" name that the splits relationship resolves
+# lazily by string. Plain Table.alias() only touches column metadata, so it
+# can't trip that ordering issue.
+_refund_table = Expense.__table__.alias()
+Expense.has_refunds = column_property(
+    exists().where(_refund_table.c.refund_of_expense_id == Expense.__table__.c.id)
+)

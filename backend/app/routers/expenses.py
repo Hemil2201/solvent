@@ -39,6 +39,7 @@ def list_expenses(
     person_id: uuid.UUID | None = None,
     is_shared: bool | None = None,
     deleted_only: bool = False,
+    q: str | None = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ) -> list[Expense]:
@@ -54,6 +55,8 @@ def list_expenses(
         query = query.where(Expense.paid_by == person_id)
     if is_shared is not None:
         query = query.where(Expense.is_shared == is_shared)
+    if q:
+        query = query.where(Expense.description.ilike(f"%{q}%"))
     query = query.order_by(Expense.date.desc(), Expense.created_at.desc())
     return list(db.execute(query).scalars())
 

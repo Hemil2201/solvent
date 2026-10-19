@@ -99,6 +99,7 @@ create index expenses_category_idx on expenses (category_id);
 create index expenses_paid_by_idx on expenses (paid_by);
 create index expenses_is_shared_idx on expenses (is_shared);
 create index expenses_deleted_at_idx on expenses (deleted_at);
+create index expenses_refund_of_idx on expenses (refund_of_expense_id);
 
 -- ===================================================== expense_splits ====
 -- Only populated when expenses.is_shared = true. Drives both the running

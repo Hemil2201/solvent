@@ -49,6 +49,7 @@ class ExpenseOut(BaseModel):
     receipt_photo_url: str | None
     merchant_logo_url: str | None
     refund_of_expense_id: uuid.UUID | None
+    has_refunds: bool = False
     source: str
     created_by: uuid.UUID
     created_at: datetime
