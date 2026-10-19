@@ -93,7 +93,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun ExpenseListScreen(
     expenseRepository: ExpenseRepository,
@@ -109,6 +109,17 @@ fun ExpenseListScreen(
     val state = viewModel.state
     val sessionUserId = authRepository.getSessionUser()?.id
     var datePickerTarget by remember { mutableStateOf<String?>(null) } // "start" | "end" | null
+    var searchText by remember { mutableStateOf(state.filter.search ?: "") }
+
+    // Debounced — re-filtering on every keystroke would fire a request per
+    // character typed.
+    LaunchedEffect(searchText) {
+        kotlinx.coroutines.delay(300)
+        val newSearch = searchText.trim().ifBlank { null }
+        if (newSearch != state.filter.search) {
+            viewModel.updateFilter(state.filter.copy(search = newSearch))
+        }
+    }
 
     // Re-fetch whenever this screen comes back into view (e.g. after deleting
     // or editing an expense on the detail screen) — the ViewModel survives
@@ -132,6 +143,20 @@ fun ExpenseListScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            androidx.compose.material3.OutlinedTextField(
+                value = searchText,
+                onValueChange = { searchText = it },
+                placeholder = { Text("Search expenses") },
+                trailingIcon = {
+                    if (searchText.isNotEmpty()) {
+                        IconButton(onClick = { searchText = "" }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            )
             FilterBar(
                 filter = state.filter,
                 categories = state.categories,
@@ -154,18 +179,34 @@ fun ExpenseListScreen(
                         message = "Add your first expense with the + button, or try adjusting your filters.",
                         modifier = Modifier.fillMaxSize(),
                     )
-                    else -> LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 96.dp),
-                    ) {
-                        items(state.expenses) { expense ->
-                            ExpenseRow(
-                                expense = expense,
-                                category = state.categories.find { it.id == expense.categoryId },
-                                sessionUserId = sessionUserId,
-                                onClick = { onOpenExpense(expense.id) },
-                            )
-                            Divider(modifier = Modifier.padding(horizontal = Spacing.lg))
+                    else -> {
+                        val grouped = state.expenses.groupBy { java.time.YearMonth.from(LocalDate.parse(it.date)) }
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 96.dp),
+                        ) {
+                            grouped.forEach { (month, expenses) ->
+                                stickyHeader(key = "header-$month") {
+                                    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxWidth()) {
+                                        Text(
+                                            month.format(java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy")),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                                        )
+                                    }
+                                }
+                                items(expenses, key = { it.id }) { expense ->
+                                    ExpenseRow(
+                                        expense = expense,
+                                        category = state.categories.find { it.id == expense.categoryId },
+                                        sessionUserId = sessionUserId,
+                                        onClick = { onOpenExpense(expense.id) },
+                                    )
+                                    Divider(modifier = Modifier.padding(horizontal = Spacing.lg))
+                                }
+                            }
                         }
                     }
                 }
@@ -466,11 +507,16 @@ private fun ExpenseRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    "${expense.date} · ${category?.name ?: "Uncategorized"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "${expense.date} · ${category?.name ?: "Uncategorized"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (expense.hasRefunds) {
+                        Text("↩ refunded", style = MaterialTheme.typography.bodySmall, color = BalanceColors.positiveLight)
+                    }
+                }
             }
         }
 

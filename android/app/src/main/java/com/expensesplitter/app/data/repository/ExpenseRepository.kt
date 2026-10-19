@@ -33,6 +33,7 @@ data class Expense(
     val receiptPhotoUrl: String?,
     val merchantLogoUrl: String?,
     val refundOfExpenseId: String? = null,
+    val hasRefunds: Boolean = false,
     val refunds: List<RefundSummary> = emptyList(),
 )
 
@@ -55,9 +56,11 @@ data class ExpenseFilter(
     val categoryId: String? = null,
     val personId: String? = null,
     val isShared: Boolean? = null,
+    val search: String? = null,
 ) {
     val isEmpty: Boolean
-        get() = startDate == null && endDate == null && categoryId == null && personId == null && isShared == null
+        get() = startDate == null && endDate == null && categoryId == null && personId == null &&
+            isShared == null && search == null
 }
 
 /** Holds a category tapped on Home's category grid so the Expenses tab can
@@ -90,6 +93,7 @@ class ExpenseRepository(
             categoryId = filter.categoryId,
             personId = filter.personId,
             isShared = filter.isShared,
+            search = filter.search,
         )
         // Only cache the unfiltered set — a filtered result isn't "all expenses" for offline fallback.
         if (filter.isEmpty) expenseDao.replaceAll(expenses.map { it.toEntity() })
@@ -148,6 +152,7 @@ class ExpenseRepository(
         receiptPhotoUrl = receipt_photo_url,
         merchantLogoUrl = merchant_logo_url,
         refundOfExpenseId = refund_of_expense_id,
+        hasRefunds = has_refunds,
         refunds = refunds.map { RefundSummary(it.id, it.amount, it.date) },
     )
 

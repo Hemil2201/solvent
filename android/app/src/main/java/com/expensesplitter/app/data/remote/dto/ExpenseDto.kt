@@ -40,6 +40,7 @@ data class ExpenseDto(
     val receipt_photo_url: String? = null,
     val merchant_logo_url: String? = null,
     val refund_of_expense_id: String? = null,
+    val has_refunds: Boolean = false,
     val source: String,
     val created_by: String,
     val created_at: String,

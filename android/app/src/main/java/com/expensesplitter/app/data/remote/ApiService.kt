@@ -67,6 +67,7 @@ interface ApiService {
         @Query("person_id") personId: String? = null,
         @Query("is_shared") isShared: Boolean? = null,
         @Query("deleted_only") deletedOnly: Boolean? = null,
+        @Query("q") search: String? = null,
     ): List<ExpenseDto>
 
     @GET("expenses/{id}")
