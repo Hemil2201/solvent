@@ -14,6 +14,7 @@ from app.models.plaid_account import PlaidAccount
 from app.models.plaid_item import PlaidItem
 from app.models.plaid_transaction import PlaidTransaction
 from app.models.user import User
+from app.schemas.expense import ExpenseRefOut
 from app.schemas.plaid import (
     ExchangePublicTokenRequest,
     LinkTokenResponse,
@@ -26,7 +27,7 @@ from app.models.split_preference import SplitPreference
 from app.services import plaid_client
 from app.services import split_preference_service
 from app.services.categorizer import rules_based_category
-from app.services.duplicate_detector import find_duplicate
+from app.services.duplicate_detector import find_duplicate, find_possible_duplicate
 from app.services.split_calculator import SplitValidationError, compute_splits
 from app.services.token_encryption import decrypt_token, encrypt_token
 
@@ -265,6 +266,7 @@ def _txn_to_out(
     account_name: str,
     institution_name: str | None,
     suggestion: SplitPreference | None = None,
+    possible_duplicate: Expense | None = None,
 ) -> PlaidTransactionOut:
     return PlaidTransactionOut(
         id=txn.id,
@@ -281,6 +283,7 @@ def _txn_to_out(
         is_duplicate_of=txn.is_duplicate_of,
         resolved_expense_id=txn.resolved_expense_id,
         dismissed_at=txn.dismissed_at.isoformat() if txn.dismissed_at else None,
+        possible_duplicate=ExpenseRefOut.model_validate(possible_duplicate) if possible_duplicate else None,
         suggested_is_shared=suggestion.is_shared if suggestion else None,
         suggested_split_type=suggestion.split_type if suggestion else None,
         suggested_owed_by_other=suggestion.owed_by_other if suggestion else False,
@@ -311,7 +314,16 @@ def list_transactions(
                     t.raw_merchant_name or t.raw_description
                 )
                 suggestion = split_preference_service.get_suggestion(db, merchant_key, t.matched_category_id)
-                results.append(_txn_to_out(t, account.name, item.institution_name, suggestion))
+                # Only worth checking for transactions still awaiting a
+                # decision — and skip it when the exact-amount check already
+                # found something, so the row doesn't show two duplicate
+                # banners at once.
+                possible_duplicate = None
+                if t.resolved_expense_id is None and t.dismissed_at is None and t.is_duplicate_of is None and t.raw_date:
+                    possible_duplicate = find_possible_duplicate(
+                        db, t.raw_merchant_name or t.raw_description, t.raw_date
+                    )
+                results.append(_txn_to_out(t, account.name, item.institution_name, suggestion, possible_duplicate))
     results.sort(key=lambda r: r.raw_date or date.min, reverse=True)
     return results
 

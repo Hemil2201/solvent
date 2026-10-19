@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
-from app.schemas.expense import SplitInput
+from app.schemas.expense import ExpenseRefOut, SplitInput
 
 
 class LinkTokenResponse(BaseModel):
@@ -56,6 +56,10 @@ class PlaidTransactionOut(BaseModel):
     is_duplicate_of: uuid.UUID | None
     resolved_expense_id: uuid.UUID | None
     dismissed_at: str | None = None
+    # Broader than is_duplicate_of (same merchant within a day, any
+    # amount) — shown as a heads-up, not a forced merge, when the exact-
+    # amount check above found nothing.
+    possible_duplicate: ExpenseRefOut | None = None
     # Suggestion derived from split_preferences — None on every field when
     # there's no merchant or category history yet, in which case the client
     # keeps its own "Personal" default.

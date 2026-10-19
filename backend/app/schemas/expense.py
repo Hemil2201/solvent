@@ -50,7 +50,6 @@ class ExpenseOut(BaseModel):
     merchant_logo_url: str | None
     refund_of_expense_id: uuid.UUID | None
     has_refunds: bool = False
-    has_possible_duplicate: bool = False
     source: str
     created_by: uuid.UUID
     created_at: datetime
@@ -61,7 +60,7 @@ class ExpenseOut(BaseModel):
 
 class ExpenseRefOut(BaseModel):
     """Lightweight pointer to another expense — used for a refund's
-    children, its parent, and possible-duplicate candidates alike."""
+    children and its parent."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,12 +72,10 @@ class ExpenseRefOut(BaseModel):
 
 class ExpenseDetailOut(ExpenseOut):
     # Only populated by GET /expenses/{id} — kept off the base ExpenseOut
-    # so list_expenses doesn't pay for these lookups on every row; the two
-    # booleans above (has_refunds / has_possible_duplicate) are what the
-    # list uses instead.
+    # so list_expenses doesn't pay for a refunds lookup on every row; the
+    # has_refunds boolean above is what the list uses instead.
     refunds: list[ExpenseRefOut] = []
     refund_of: ExpenseRefOut | None = None
-    possible_duplicates: list[ExpenseRefOut] = []
 
 
 class ExpenseUpdate(BaseModel):

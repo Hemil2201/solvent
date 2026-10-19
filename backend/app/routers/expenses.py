@@ -1,6 +1,6 @@
 import uuid
 from datetime import date as date_type
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -81,24 +81,10 @@ def get_expense(
         if parent is not None:
             refund_of = ExpenseRefOut.model_validate(parent)
 
-    # Same rule as Expense.has_possible_duplicate (app/models/expense.py) —
-    # kept in sync by hand since one's a SQL column_property and the other
-    # a plain query against an already-loaded row's values.
-    duplicates = db.execute(
-        select(Expense).where(
-            Expense.id != expense_id,
-            Expense.deleted_at.is_(None),
-            Expense.description == expense.description,
-            Expense.date >= expense.date - timedelta(days=1),
-            Expense.date <= expense.date + timedelta(days=1),
-        )
-    ).scalars()
-
     return ExpenseDetailOut.model_validate(expense).model_copy(
         update={
             "refunds": [ExpenseRefOut.model_validate(r) for r in refunds],
             "refund_of": refund_of,
-            "possible_duplicates": [ExpenseRefOut.model_validate(d) for d in duplicates],
         }
     )
 

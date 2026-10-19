@@ -58,21 +58,3 @@ _refund_table = Expense.__table__.alias()
 Expense.has_refunds = column_property(
     exists().where(_refund_table.c.refund_of_expense_id == Expense.__table__.c.id)
 )
-
-# Same merchant, within a day — informational only (never auto-merged),
-# same spirit as duplicate_detector.find_duplicate but scanning already-
-# resolved expenses against each other rather than an incoming Plaid
-# transaction against history. Deliberately ignores amount: the real-world
-# case this catches is a pending-vs-settled sync artifact where the two
-# amounts differ slightly (e.g. a tip adjustment), which an exact-amount
-# rule would miss entirely.
-_possible_dup_table = Expense.__table__.alias()
-Expense.has_possible_duplicate = column_property(
-    exists().where(
-        _possible_dup_table.c.id != Expense.__table__.c.id,
-        _possible_dup_table.c.deleted_at.is_(None),
-        _possible_dup_table.c.description == Expense.__table__.c.description,
-        _possible_dup_table.c.date >= Expense.__table__.c.date - 1,
-        _possible_dup_table.c.date <= Expense.__table__.c.date + 1,
-    )
-)
