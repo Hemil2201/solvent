@@ -141,19 +141,6 @@ fun ExpenseDetailScreen(
             }
         }
 
-        if (expense.possibleDuplicates.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                expense.possibleDuplicates.forEach { dup ->
-                    Text(
-                        "⚠ Possible duplicate: ${dup.description ?: "expense"} · $${dup.amount} on ${dup.date}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = BalanceColors.warningLight,
-                        modifier = Modifier.clickable { onOpenExpense(dup.id) },
-                    )
-                }
-            }
-        }
-
         expense.receiptPhotoUrl?.let { photoUrl ->
             Divider(modifier = Modifier.padding(vertical = 8.dp))
             Text("Receipt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)

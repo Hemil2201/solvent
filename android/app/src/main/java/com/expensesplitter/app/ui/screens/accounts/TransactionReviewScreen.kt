@@ -48,6 +48,7 @@ fun TransactionReviewScreen(
     plaidRepository: PlaidRepository,
     expenseRepository: ExpenseRepository,
     authRepository: AuthRepository,
+    onOpenExpense: (String) -> Unit,
 ) {
     val viewModel: TransactionReviewViewModel = viewModel(
         factory = viewModelFactory {
@@ -133,6 +134,7 @@ fun TransactionReviewScreen(
                                         )
                                     },
                                     onDismiss = { onError -> viewModel.dismiss(txn.id, onError) },
+                                    onOpenExpense = onOpenExpense,
                                 )
                             }
                         }

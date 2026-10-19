@@ -23,8 +23,8 @@ data class ExpenseCreateDto(
 @Serializable
 data class ExpenseSplitDto(val user_id: String, val split_type: String, val amount_owed: String)
 
-// Lightweight pointer to another expense — used for a refund's children,
-// its parent, and possible-duplicate candidates alike.
+// Lightweight pointer to another expense — used for a refund's children
+// and its parent.
 @Serializable
 data class ExpenseRefDto(val id: String, val description: String? = null, val amount: String, val date: String)
 
@@ -43,7 +43,6 @@ data class ExpenseDto(
     val merchant_logo_url: String? = null,
     val refund_of_expense_id: String? = null,
     val has_refunds: Boolean = false,
-    val has_possible_duplicate: Boolean = false,
     val source: String,
     val created_by: String,
     val created_at: String,
@@ -54,7 +53,6 @@ data class ExpenseDto(
     // empty/null) from list/create/update responses.
     val refunds: List<ExpenseRefDto> = emptyList(),
     val refund_of: ExpenseRefDto? = null,
-    val possible_duplicates: List<ExpenseRefDto> = emptyList(),
 )
 
 @Serializable

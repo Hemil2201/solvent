@@ -17,8 +17,8 @@ data class Category(val id: String, val name: String, val icon: String?)
 
 data class ExpenseSplit(val userId: String, val amountOwed: String, val splitType: String)
 
-// Lightweight pointer to another expense — a refund's children, its
-// parent, or a possible-duplicate candidate.
+// Lightweight pointer to another expense — a refund's children or its
+// parent.
 data class ExpenseRef(val id: String, val description: String?, val amount: String, val date: String)
 
 data class Expense(
@@ -37,10 +37,8 @@ data class Expense(
     val merchantLogoUrl: String?,
     val refundOfExpenseId: String? = null,
     val hasRefunds: Boolean = false,
-    val hasPossibleDuplicate: Boolean = false,
     val refunds: List<ExpenseRef> = emptyList(),
     val refundOf: ExpenseRef? = null,
-    val possibleDuplicates: List<ExpenseRef> = emptyList(),
 )
 
 data class ExpenseComment(val id: String, val userId: String, val comment: String, val createdAt: String)
@@ -159,10 +157,8 @@ class ExpenseRepository(
         merchantLogoUrl = merchant_logo_url,
         refundOfExpenseId = refund_of_expense_id,
         hasRefunds = has_refunds,
-        hasPossibleDuplicate = has_possible_duplicate,
         refunds = refunds.map { it.toDomain() },
         refundOf = refund_of?.toDomain(),
-        possibleDuplicates = possible_duplicates.map { it.toDomain() },
     )
 
     private fun ExpenseRefDto.toDomain() = ExpenseRef(id, description, amount, date)

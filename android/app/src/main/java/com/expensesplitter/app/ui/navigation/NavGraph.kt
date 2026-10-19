@@ -185,6 +185,7 @@ fun ExpenseSplitterNavGraph(
                 plaidRepository = container.plaidRepository,
                 expenseRepository = container.expenseRepository,
                 authRepository = container.authRepository,
+                onOpenExpense = { id -> navController.navigate(Screen.ExpenseDetail.buildRoute(id)) },
             )
         }
         composable(Screen.AddExpense.route) {

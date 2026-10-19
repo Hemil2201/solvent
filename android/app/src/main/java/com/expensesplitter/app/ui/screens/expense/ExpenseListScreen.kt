@@ -516,9 +516,6 @@ private fun ExpenseRow(
                     if (expense.hasRefunds) {
                         Text("↩ refunded", style = MaterialTheme.typography.bodySmall, color = BalanceColors.positiveLight)
                     }
-                    if (expense.hasPossibleDuplicate) {
-                        Text("⚠ possible duplicate", style = MaterialTheme.typography.bodySmall, color = BalanceColors.warningLight)
-                    }
                 }
             }
         }

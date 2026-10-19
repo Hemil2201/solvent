@@ -48,6 +48,7 @@ data class PlaidTransactionDto(
     val is_duplicate_of: String? = null,
     val resolved_expense_id: String? = null,
     val dismissed_at: String? = null,
+    val possible_duplicate: ExpenseRefDto? = null,
     val suggested_is_shared: Boolean? = null,
     val suggested_split_type: String? = null,
     val suggested_owed_by_other: Boolean = false,

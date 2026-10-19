@@ -75,6 +75,7 @@ fun PlaidTransactionRow(
         onError: (String) -> Unit,
     ) -> Unit,
     onDismiss: (onError: (String) -> Unit) -> Unit,
+    onOpenExpense: (String) -> Unit,
 ) {
     val otherUser = users.firstOrNull { it.id != currentUserId }
     // Plaid's sign convention: negative = money in, i.e. a refund/return
@@ -183,6 +184,32 @@ fun PlaidTransactionRow(
                             ) { Text("Skip, it's a duplicate") }
                             TextButton(onClick = { showDuplicateBanner = false }) { Text("Not a duplicate") }
                         }
+                    }
+                }
+            }
+
+            // Broader, informational cousin of the exact-amount banner above
+            // (same merchant within a day, any amount) — a heads-up, not a
+            // forced merge, since the two amounts differing might mean two
+            // genuinely separate purchases. The backend never sends both at
+            // once, but the null-check here is the real guard either way.
+            txn.possibleDuplicate?.let { dup ->
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = BalanceColors.warningLight.copy(alpha = 0.14f),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            "⚠ You already have ${dup.description ?: "an expense"} · $${dup.amount} on ${dup.date}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = BalanceColors.warningLight,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { onOpenExpense(dup.id) }) { Text("View it") }
                     }
                 }
             }
