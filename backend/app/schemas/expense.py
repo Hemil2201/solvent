@@ -78,6 +78,16 @@ class ExpenseDetailOut(ExpenseOut):
     refund_of: ExpenseRefOut | None = None
 
 
+class DuplicateGroupOut(BaseModel):
+    """A cluster of already-resolved expenses that look like they might be
+    the same charge — same merchant, each within a day of the next one in
+    the group. For GET /expenses/duplicates, an on-demand cleanup scan,
+    distinct from the Review Transactions warning (which only catches new
+    ones going forward)."""
+
+    expenses: list[ExpenseRefOut]
+
+
 class ExpenseUpdate(BaseModel):
     amount: Decimal | None = None
     currency: str | None = None

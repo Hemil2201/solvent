@@ -14,6 +14,7 @@ from app.models.expense_edit_history import ExpenseEditHistory
 from app.models.expense_split import ExpenseSplit
 from app.models.user import User
 from app.schemas.expense import (
+    DuplicateGroupOut,
     ExpenseCommentCreate,
     ExpenseCommentOut,
     ExpenseCreate,
@@ -61,6 +62,50 @@ def list_expenses(
     return list(db.execute(query).scalars())
 
 
+@router.get("/duplicates", response_model=list[DuplicateGroupOut])
+def find_duplicate_groups(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[DuplicateGroupOut]:
+    """On-demand scan across all existing expenses — for cleaning up ones
+    that already slipped through before Review Transactions could warn
+    about them (or from before that warning existed at all). Groups
+    same-merchant, same-day expenses together.
+
+    Same-day rather than the Review-time check's +/-1 day window on
+    purpose: tested against this account's real data, a window here swept
+    in long runs of a frequently-visited merchant bought on genuinely
+    separate consecutive days (three different Costco trips three days
+    running, at three different amounts) as one false "duplicate" group.
+    Every real duplicate found in that same data — Kroger, two insurance
+    premiums, a water delivery, a takeout order — was same-day, several of
+    them exact-amount matches too. The Review-time check still uses a
+    wider window; comparing one new transaction against history doesn't
+    have this chaining problem the same way a full-history scan does."""
+    expenses = list(
+        db.execute(
+            select(Expense)
+            .where(Expense.deleted_at.is_(None), Expense.description.isnot(None))
+            .order_by(Expense.description, Expense.date)
+        ).scalars()
+    )
+
+    groups: list[list[Expense]] = []
+    current: list[Expense] = []
+    for e in expenses:
+        if current and current[-1].description == e.description and current[-1].date == e.date:
+            current.append(e)
+        else:
+            if len(current) > 1:
+                groups.append(current)
+            current = [e]
+    if len(current) > 1:
+        groups.append(current)
+
+    return [DuplicateGroupOut(expenses=[ExpenseRefOut.model_validate(e) for e in g]) for g in groups]
+
+
+# IMPORTANT: this must stay below /duplicates (and any other static
+# sub-path added under /expenses) — FastAPI matches routes in registration
+# order, and {expense_id}'s uuid.UUID type would otherwise try (and fail)
+# to parse "duplicates" as a UUID before ever reaching the route above.
 @router.get("/{expense_id}", response_model=ExpenseDetailOut)
 def get_expense(
     expense_id: uuid.UUID, db: Session = Depends(get_db), _: User = Depends(get_current_user)
