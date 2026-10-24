@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
@@ -88,9 +89,13 @@ fun DashboardScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
                     BalanceHeroCard(sessionUserName = sessionUser?.name, balances = state.balances)
 
-                    if (state.reviewCount > 0) {
-                        ReviewBanner(count = state.reviewCount, onClick = onReviewTransactions)
-                    }
+                    // Always present, not just when reviewCount > 0 — this
+                    // is the only way to reach Review Transactions at all
+                    // now that the Linked Accounts screen no longer has its
+                    // own button to it, and it's also where "Sync" lives,
+                    // so hiding it once caught up left no way to pull fresh
+                    // transactions either.
+                    ReviewBanner(count = state.reviewCount, onClick = onReviewTransactions)
 
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         Text(
@@ -125,40 +130,44 @@ fun DashboardScreen(
 // Prominent, not a buried list row — this is the app's most-used daily
 // task once a bank is linked, so it gets its own highlighted banner right
 // under the balance instead of competing for attention with one-off
-// utilities like "Upload Statement".
+// utilities like "Upload Statement". Always shown (not just when count >
+// 0) since it's also the only way to reach the Sync button — see call
+// site for why.
 @Composable
 private fun ReviewBanner(count: Int, onClick: () -> Unit) {
+    val hasItems = count > 0
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = HeroShapes.heroCard,
-        color = MaterialTheme.colorScheme.primaryContainer,
+        color = if (hasItems) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
+        val contentColor = if (hasItems) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
         Row(
             modifier = Modifier.padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Icon(Icons.Filled.Inbox, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                Icon(
+                    if (hasItems) Icons.Filled.Inbox else Icons.Filled.Sync,
+                    contentDescription = null,
+                    tint = contentColor,
+                )
                 Column {
                     Text(
-                        "$count transaction${if (count == 1) "" else "s"} to review",
+                        if (hasItems) "$count transaction${if (count == 1) "" else "s"} to review" else "All caught up",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = contentColor,
                     )
                     Text(
-                        "From your linked accounts",
+                        if (hasItems) "From your linked accounts" else "Tap to review transactions or sync",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        color = contentColor.copy(alpha = 0.8f),
                     )
                 }
             }
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = contentColor)
         }
     }
 }
